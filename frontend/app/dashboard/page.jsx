@@ -1,6 +1,12 @@
+import BorrowContainer from "../components/container/BorrowContainer"
+import LendContainer from "../components/container/LendContainer"
 const page = () => {
   return (
-    <div>page</div>
+    <div className="flex justify-between">
+
+      <BorrowContainer/>
+      <LendContainer/> 
+    </div>
   )
 }
 
