@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ant-design/compatible": "^5.1.4",
+    "antd": "^5.23.3",
     "next": "15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
