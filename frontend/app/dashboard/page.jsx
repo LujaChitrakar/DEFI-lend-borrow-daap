@@ -107,8 +107,8 @@ const page = () => {
 </div>
 <div className="flex justify-between mt-4">
     
-    <Container name={"Assets To Borrows"} data={data1}/>
-    <Container name={"Assets To Lends"} data={data1}/>
+    <Container name={"Assets To Borrow"} data={data1} label={"Borrow"}/>
+    <Container name={"Assets To Lend"} data={data1} label={"Lend"}/>
 </div>
 </div>
 
