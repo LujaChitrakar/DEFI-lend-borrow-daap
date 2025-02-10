@@ -70,7 +70,7 @@ export default function Home() {
 
       <main className="flex-1 relative">
         {/* Hero Section */}
-        <section className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <section className="mt-20 min-h-screen flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-black/60 z-0"></div>
 
           <div className="ring-animation-wrapper relative z-10">

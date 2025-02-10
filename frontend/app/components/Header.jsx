@@ -13,12 +13,12 @@ const Header = () => {
 
   const handleLaunchApp = () => {
     if (isMounted) {
-      router.push("/dashboard"); // Ensure router navigation
+      router.push("/dashboard"); // Navigate to dashboard
     }
   };
 
   return (
-    <header className="w-full py-4 px-8 bg-gradient-to-r from-[#0A0F1F] via-[#112240] to-[#0A0F1F] fixed top-0 left-0 right-0 flex justify-between items-center shadow-xl z-50 backdrop-blur-md bg-opacity-90 border-b border-[#1E3A8A]/40">
+    <header className="w-full py-4 px-8 bg-gradient-to-r from-[#0A0F1F] via-[#112240] to-[#0A0F1F] fixed top-0 left-0 right-0 flex justify-between items-center shadow-xl z-10 backdrop-blur-lg bg-opacity-90 border-b border-[#1E3A8A]/40">
       {/* Logo Section */}
       <div className="flex items-center logo-container">
         <div className="logo-inner-effects">
@@ -125,6 +125,21 @@ const Header = () => {
           100% {
             transform: scale(1) translate(0, 0);
             opacity: 0.8;
+          }
+        }
+
+        /* Header Adjustments */
+        @media (max-width: 768px) {
+          header {
+            padding: 8px 16px;
+          }
+
+          .logo-container {
+            justify-content: center;
+          }
+
+          .logo-bright {
+            width: 100px;
           }
         }
       `}</style>
