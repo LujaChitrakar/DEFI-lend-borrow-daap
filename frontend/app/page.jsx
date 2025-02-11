@@ -70,7 +70,7 @@ export default function Home() {
 
       <main className="flex-1 relative">
         {/* Hero Section */}
-        <section className="mt-20 min-h-screen flex items-center justify-center relative overflow-hidden">
+        <section className=" min-h-screen flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-black/60 z-0"></div>
 
           <div className="ring-animation-wrapper relative z-10">
@@ -174,7 +174,7 @@ export default function Home() {
         </section>
 
         {/* Floating Circles Section */}
-        <section className="bg-gradient-to-b from-gray-900 to-black py-20 px-6 relative overflow-hidden">
+        <section className="bg-gradient-to-b from-gray-900 to-black py-40 px-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 to-blue-900/10 opacity-50 pointer-events-none"></div>
 
           <div className="relative z-10 max-w-4xl mx-auto">
