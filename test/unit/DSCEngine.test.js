@@ -3,7 +3,7 @@ require("chai");
 require("hardhat");
 
 describe("DSCEngine", async function () {
-  let dsce, usdc, usdt, ERC20Mock, owner, user;
+  let dsce, usdc, usdt, owner, user;
 
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
@@ -14,26 +14,34 @@ describe("DSCEngine", async function () {
 
     const DSCEngine = await ethers.getContractFactory("DSCEngine");
     dsce = await DSCEngine.deploy();
+    console.log("USDC Deployment:", usdc);
+    console.log("USDT Deployment:", usdt);
 
-    await dsce.allowedToken(usdc.address, owner.address);
-    await dsce.allowedToken(usdt.address, owner.address);
+    // Ensure they have addresses
+    if (!usdc.address || !usdt.address) {
+      console.error("Deployment failed: Contract address is null");
+      throw new Error("Deployment failed: Contract address is null");
+    }
 
-    await usdc.mint(user.address, ethers.utils.parseUnits("1000", 18));
-    await usdt.mint(user.address, ethers.utils.parseUnits("1000", 18));
+    await dsce.addAllowedToken(usdc.target, owner.address);
+    await dsce.addAllowedToken(usdt.target, owner.address);
 
-    await usdc
-      .connect(user)
-      .approve(dsce.address, ethers.utils.parseUnits("500", 18));
-    await usdt
-      .connect(user)
-      .approve(dsce.address, ethers.utils.parseUnits("500", 18));
+    await usdc.mint(user.address, 100);
+    await usdt.mint(user.address, 100);
+
+    console.log(usdc.mint);
+
+    await usdc.connect(user).approve(dsce.address, 100);
+    await usdt.connect(user).approve(dsce.address, 100);
   });
 
   /**DEPOSIT TESTS */
   it("Should allow deposit of USDC", async function () {
-    const depositAmount = ethers.utils.parseUnits("100", 18);
+    const depositAmount = 100;
 
-    await expect(dsce.connect(user).depositStableCoins(usdc, depositAmount))
+    await expect(
+      dsce.connect(user).depositStableCoins(usdc.target, depositAmount)
+    )
       .to.emit(dsce, "StableCoinDeposited")
       .withArgs(user.address, usdc.address, depositAmount);
   });
