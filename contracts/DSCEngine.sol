@@ -10,15 +10,21 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     /**ERRORS */
     error DSCEngine__TransferFailed();
     error DSCEngine__NotAllowedToken();
+    error DSCEngine__NotAllowedCollateral();
     error DSCEngine__NeedsMoreThanZero();
     error DSCEngine__Mintfailed();
+    error DSCEngine__TokenBurnFailed();
 
     /**STATE VARIABLES */
     mapping(address => mapping(address => uint256)) s_stableCoinDeposit;
+    mapping(address => mapping(address => uint256)) s_collateralDeposit;
     mapping(address => address) private s_priceFeed;
     mapping(address => uint256) s_tokenMinted;
+    mapping(address => uint256) s_startTimestamp;
 
     LendingToken private immutable i_ltoken;
+    address public immutable USDT_ADDRESS;
+    address public immutable USDC_ADDRESS;
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
 
@@ -26,6 +32,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     event StableCoinDeposited(
         address indexed from,
         address indexed token,
+        uint256 amount
+    );
+    event CollateralDeposited(
+        address indexed from,
+        address indexed collateral,
         uint256 indexed amount
     );
     event StableCoinWithdrawed(
@@ -42,6 +53,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         }
         _;
     }
+    modifier isCollateralAllowed(address collateral) {
+        if (s_priceFeed[collateral] == address(0)) {
+            revert DSCEngine__NotAllowedCollateral();
+        }
+        _;
+    }
     modifier moreThanZero(uint256 amount) {
         if (amount == 0) {
             revert DSCEngine__NeedsMoreThanZero();
@@ -49,26 +66,45 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         _;
     }
 
+    modifier sufficientDeposit(address user, uint256 amount) {
+        require(
+            s_collateralDeposit[user][USDC_ADDRESS] >= amount,
+            "Not sufficient deposit"
+        );
+        require(
+            s_collateralDeposit[user][USDT_ADDRESS] >= amount,
+            "Not sufficient deposit"
+        );
+        _;
+    }
+
     constructor(
         address[] memory StableCoinAddresses,
         address[] memory priceFeedAddresses,
-        address dsctokenAddress
+        address dsctokenAddress,
+        address _usdtAddress,
+        address _usdcAddress
     ) Ownable(msg.sender) {
         if (StableCoinAddresses.length != priceFeedAddresses.length) {
             revert();
         }
+        for (uint256 i = 0; i < StableCoinAddresses.length; i++) {
+            s_priceFeed[StableCoinAddresses[i]] = priceFeedAddresses[i];
+        }
         i_ltoken = LendingToken(dsctokenAddress);
+        USDT_ADDRESS = _usdtAddress;
+        USDC_ADDRESS = _usdcAddress;
     }
 
     /**FOR LENDERS */
 
     function depositStableCoinsAndMintToken(
         address tokenAddress,
-        uint256 amountStableCoin,
-        uint256 amountTokenToMint
+        uint256 amountStableCoin
     ) external {
         depositStableCoins(tokenAddress, amountStableCoin);
-        mintLendingToken(amountTokenToMint);
+        mintLendingToken(amountStableCoin);
+        s_startTimestamp[msg.sender] = block.timestamp;
     }
 
     function withdrawStableCoinsAndBurnToken(
@@ -78,6 +114,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     ) external {
         withdrawStableCoin(tokenAddress, amountStableCoin);
         burn(amountTokenToBurn);
+        s_startTimestamp[msg.sender] = 0;
     }
 
     function depositStableCoins(
@@ -104,7 +141,14 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     function mintLendingToken(
         uint256 amountTokenToMint
-    ) public moreThanZero(amountTokenToMint) nonReentrant {
+    )
+        public
+        moreThanZero(amountTokenToMint)
+        nonReentrant
+        sufficientDeposit(msg.sender, amountTokenToMint)
+    {
+        require(address(i_ltoken) != address(0), "i_ltoken not initialized");
+
         s_tokenMinted[msg.sender] += amountTokenToMint;
         emit tokenMinted(msg.sender, amountTokenToMint);
         bool minted = i_ltoken.mint(msg.sender, amountTokenToMint);
@@ -140,6 +184,34 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         _burn(msg.sender, msg.sender, amountTokenToBurn);
     }
 
+    /**FOR BORROWER */
+    function depositCollateral(
+        address collateralAddress,
+        uint256 collateralAmount
+    )
+        public
+        moreThanZero(collateralAmount)
+        nonReentrant
+        isCollateralAllowed(collateralAddress)
+    {
+        bool success = IERC20(collateralAddress).transferFrom(
+            msg.sender,
+            address(this),
+            collateralAmount
+        );
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        s_collateralDeposit[msg.sender][collateralAddress] += collateralAmount;
+        s_startTimestamp[msg.sender] = block.timestamp;
+
+        emit CollateralDeposited(
+            msg.sender,
+            collateralAddress,
+            collateralAmount
+        );
+    }
+
     /**ADMIN FUNCTIONS */
     function addAllowedToken(
         address token,
@@ -154,6 +226,17 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         address token
     ) external view returns (uint256) {
         return s_stableCoinDeposit[user][token];
+    }
+
+    function getMintedLendingToken(
+        address user
+    ) external view returns (uint256) {
+        return s_tokenMinted[user];
+    }
+
+    function totalTimePassed(address user) external view returns (uint256) {
+        require(s_startTimestamp[user] > 0, "User has not deposited yet");
+        return (block.timestamp - s_startTimestamp[user]);
     }
 
     /**FUNCTIONS(PRIVATE and INTERNAL) */
@@ -176,7 +259,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             amountTokenToBurn
         );
         if (!burned) {
-            revert();
+            revert DSCEngine__TokenBurnFailed();
         }
         i_ltoken.burn(amountTokenToBurn);
     }
