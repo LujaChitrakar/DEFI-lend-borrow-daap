@@ -1,6 +1,7 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.18;
 import {LendingToken} from "./LendingToken.sol";
+import {InterestRateModel} from "./InterestRateModel.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -23,6 +24,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     mapping(address => uint256) s_startTimestamp;
 
     LendingToken private immutable i_ltoken;
+    InterestRateModel private immutable i_interest;
     address public immutable USDT_ADDRESS;
     address public immutable USDC_ADDRESS;
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
@@ -83,7 +85,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         address[] memory priceFeedAddresses,
         address dsctokenAddress,
         address _usdtAddress,
-        address _usdcAddress
+        address _usdcAddress,
+        address InterestRateModelAddress
     ) Ownable(msg.sender) {
         if (StableCoinAddresses.length != priceFeedAddresses.length) {
             revert();
@@ -92,6 +95,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             s_priceFeed[StableCoinAddresses[i]] = priceFeedAddresses[i];
         }
         i_ltoken = LendingToken(dsctokenAddress);
+        i_interest = InterestRateModel(InterestRateModelAddress);
         USDT_ADDRESS = _usdtAddress;
         USDC_ADDRESS = _usdcAddress;
     }
@@ -104,7 +108,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     ) external {
         depositStableCoins(tokenAddress, amountStableCoin);
         mintLendingToken(amountStableCoin);
-        s_startTimestamp[msg.sender] = block.timestamp;
     }
 
     function withdrawStableCoinsAndBurnToken(
@@ -114,7 +117,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     ) external {
         withdrawStableCoin(tokenAddress, amountStableCoin);
         burn(amountTokenToBurn);
-        s_startTimestamp[msg.sender] = 0;
     }
 
     function depositStableCoins(
@@ -126,6 +128,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         moreThanZero(amountStableCoin)
         nonReentrant
     {
+        i_interest.accureInterest(
+            msg.sender,
+            s_stableCoinDeposit[msg.sender][tokenAddress],
+            true
+        );
         bool success = IERC20(tokenAddress).transferFrom(
             msg.sender,
             address(this),
@@ -166,15 +173,24 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         moreThanZero(amountStableCoin)
         nonReentrant
     {
+        i_interest.accureInterest(
+            msg.sender,
+            s_stableCoinDeposit[msg.sender][tokenAddress],
+            true
+        );
+
+        uint256 accuredInterest = i_interest.getAccuredInterest(msg.sender);
+
         bool success = IERC20(tokenAddress).transfer(
             msg.sender,
-            amountStableCoin
+            amountStableCoin + accuredInterest
         );
         if (!success) {
             revert DSCEngine__TransferFailed();
         }
 
         s_stableCoinDeposit[msg.sender][tokenAddress] -= amountStableCoin;
+        i_interest.resetInterest(msg.sender);
         emit StableCoinWithdrawed(msg.sender, tokenAddress, amountStableCoin);
     }
 
@@ -194,6 +210,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         nonReentrant
         isCollateralAllowed(collateralAddress)
     {
+        i_interest.accureInterest(
+            msg.sender,
+            s_stableCoinDeposit[msg.sender][collateralAddress],
+            false
+        );
         bool success = IERC20(collateralAddress).transferFrom(
             msg.sender,
             address(this),
@@ -203,7 +224,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             revert DSCEngine__TransferFailed();
         }
         s_collateralDeposit[msg.sender][collateralAddress] += collateralAmount;
-        s_startTimestamp[msg.sender] = block.timestamp;
 
         emit CollateralDeposited(
             msg.sender,
