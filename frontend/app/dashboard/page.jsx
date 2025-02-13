@@ -103,25 +103,27 @@ const page = () => {
     },
   ];
   return (
-     <div className="min-h-screen bg-gray-800 text-white">
-      <DashboardHeader />
-      <div className="flex justify-center items-center">
-        <h1 className="text-4xl font-bold">Welcome to the Dashboard!</h1>
-      </div>
-
-<div className="flex flex-col p-4">
-<div className="flex justify-between mb-4">
-
-    <Container name={"Your Borrows"} data={data1}/>
-    <Container name={"Your Lends"} data={data1}/>
-</div>
-<div className="flex justify-between mt-4">
+    <div>
+    <div className=" bg-gray-800 text-white">
     
-    <Container name={"Assets To Borrow"} data={data1} label={"Borrow"}/>
-    <Container name={"Assets To Lend"} data={data1} label={"Lend"}/>
-</div>
-</div>
+        <DashboardHeader />
+        <div className="flex justify-center items-center">
+           <h1 className="text-4xl font-bold">Welcome to the Dashboard!</h1>
     </div>
+    </div>
+    <div className="flex flex-col p-4">
+    <div className="flex justify-between mb-4">
+    
+        <Container name={"Your Borrows"} data={data1}/>
+        <Container name={"Your Lends"} data={data1}/>
+    </div>
+    <div className="flex justify-between mt-4">
+        
+        <Container name={"Assets To Borrow"} data={data1} label={"Borrow"}/>
+        <Container name={"Assets To Lend"} data={data1} label={"Lend"}/>
+    </div>
+    </div>
+        </div>
   )
   
 }
