@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button } from "antd";
+// import { Button } from "antd";
 
 const DashboardHeader = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -12,12 +12,12 @@ const DashboardHeader = () => {
   };
 
   return (
-    <header className="w-full px-12 py-6 bg-gray-900 text-white flex justify-between items-center shadow-lg">
+    <header className="w-full px-12 py-6 bg-gray-900 text-white flex justify-between items-center shadow-lg ">
       {/* Left Section: Logo and Tabs */}
-      <div className="flex items-center space-x-12">
+      <div className="flex items-center space-x-12  hover:scale-105">
         {/* Logo */}
         <div className="flex items-center space-x-3">
-          <Image src="/logo.png" alt="LendWise Logo" width={90} height={90} />
+          <Image src="/logo.png" alt="LendWise Logo" width={110} height={100} />
         </div>
 
         {/* Navigation Tabs */}
@@ -41,12 +41,9 @@ const DashboardHeader = () => {
 
       {/* Right Section: Buttons */}
       <div className="flex items-center space-x-4">
-        <Button
-          type="primary"
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-semibold rounded-lg shadow-md hover:scale-105 transform transition-all"
-        >
+        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-semibold rounded-lg shadow-md hover:scale-105 transform transition-all">
           Connect Wallet
-        </Button>
+        </button>
       </div>
     </header>
   );

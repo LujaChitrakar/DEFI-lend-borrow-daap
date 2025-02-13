@@ -1,4 +1,4 @@
-import { Button } from "antd";
+// import { Button } from "antd";
 import Image from "next/image";
 import { useRouter } from "next/navigation"; // Correct import
 import { useEffect, useState } from "react";
@@ -37,23 +37,12 @@ const Header = () => {
 
       {/* Button Section */}
       <div className="flex items-center gap-4">
-        <Button
-          type="primary"
-          size="large"
-          style={{
-            background: "linear-gradient(to right, #00C6FF, #0072FF)",
-            border: "none",
-            boxShadow: "0 0 20px rgba(0, 198, 255, 0.5)",
-            padding: "14px 28px",
-            borderRadius: "50px",
-            fontSize: "16px",
-            fontWeight: "600",
-          }}
-          className="hover:opacity-90 transition-all transform hover:scale-105 text-white font-semibold shadow-lg"
-          onClick={handleLaunchApp}
-        >
-          🚀 Launch App
-        </Button>
+      <button
+  className="bg-gradient-to-r from-[#00C6FF] to-[#0072FF] px-7 py-3.5 rounded-full text-white font-semibold text-base hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+  onClick={handleLaunchApp}
+>
+  🚀 Launch App
+</button>
       </div>
 
       <style jsx>{`

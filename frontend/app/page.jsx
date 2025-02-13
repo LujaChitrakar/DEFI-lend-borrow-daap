@@ -27,16 +27,16 @@ export default function Home() {
         id: i,
         row: 1,
         left: `${i * 18 + 10}%`,
-        color1: `hsl(${Math.random() * 360}, 70%, 60%)`, // Random vibrant colors
-        color2: `hsl(${Math.random() * 360}, 70%, 40%)`,
+        color1: `hsl(${Math.random() * 60 + 200}, 80%, 65%)`,
+        color2: `hsl(${Math.random() * 60 + 180}, 85%, 45%)`,
       }));
 
       const row2 = Array.from({ length: 5 }, (_, i) => ({
         id: i + 5,
         row: 2,
         left: `${i * 18 + 10}%`,
-        color1: `hsl(${Math.random() * 360}, 70%, 60%)`,
-        color2: `hsl(${Math.random() * 360}, 70%, 40%)`,
+        color1: `hsl(${Math.random() * 60 + 300}, 80%, 65%)`,
+        color2: `hsl(${Math.random() * 60 + 280}, 85%, 45%)`,
       }));
 
       setCircles([...row1, ...row2]);
@@ -230,16 +230,17 @@ export default function Home() {
           </div>
 
           {/* Keep the existing floating circles animation */}
-          <div className="floating-circles">
+          <div className="floating-circles justify items-center">
             {circles.map((circle) => (
               <div
                 key={circle.id}
                 className="circle"
                 style={{
                   left: circle.left,
-                  top: circle.row === 1 ? "10%" : "60%",
-                  width: "110px",
-                  height: "110px",
+                  // Change these values to move circles down
+                  top: circle.row === 1 ? "35%" : "75%",
+                  width: "120px",
+                  height: "120px",
                   background: `linear-gradient(135deg, ${circle.color1} 50%, ${circle.color2} 50%)`,
                   animationDuration: `${Math.random() * 4 + 3}s`,
                   animationDelay: `${Math.random() * 2}s`,
