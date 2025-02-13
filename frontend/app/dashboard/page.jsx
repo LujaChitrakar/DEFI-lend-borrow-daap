@@ -1,4 +1,8 @@
+
+import React from 'react';
+import DashboardHeader from './DashboardHeader';
 import Container from "../components/container/page"
+
 const page = () => {
   const data1 = [
     {
@@ -99,6 +103,12 @@ const page = () => {
     },
   ];
   return (
+     <div className="min-h-screen bg-gray-800 text-white">
+      <DashboardHeader />
+      <div className="flex justify-center items-center">
+        <h1 className="text-4xl font-bold">Welcome to the Dashboard!</h1>
+      </div>
+
 <div className="flex flex-col p-4">
 <div className="flex justify-between mb-4">
 
@@ -111,9 +121,10 @@ const page = () => {
     <Container name={"Assets To Lend"} data={data1} label={"Lend"}/>
 </div>
 </div>
-
+    </div>
   )
   
 }
 
-export default page
+
+export default page;
