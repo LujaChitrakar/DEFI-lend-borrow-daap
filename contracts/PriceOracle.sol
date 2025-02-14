@@ -9,11 +9,19 @@ contract PriceOracle is Ownable {
 
     /**STATE VARIABLES */
     mapping(address => address) private s_priceFeeds;
+    mapping(address => mapping(address => uint256))
+        private s_collateralBalances;
 
     /**EVENTS */
     event PriceFeedUpdated(
         address indexed tokenAddress,
         address indexed priceFeed
+    );
+
+    event collateralUpdated(
+        address indexed user,
+        address indexed tokenAddress,
+        uint256 amount
     );
 
     /** FUNCTIONS */
@@ -65,10 +73,40 @@ contract PriceOracle is Ownable {
         return (amount * price);
     }
 
+    /**
+    @notice updates users collateral balances
+    @param user The address of the User
+    @param tokenAddress The token address of collateral
+    @param amount The amount of collateral
+      */
+    function updateCollateral(
+        address user,
+        address tokenAddress,
+        uint256 amount
+    ) external onlyOwner {
+        s_collateralBalances[user][tokenAddress] += amount;
+        emit collateralUpdated(user, tokenAddress, amount);
+    }
+
     /**VIEW FUNCTION */
     function getPriceFeed(
         address tokenAddress
     ) external view returns (address) {
         return s_priceFeeds[tokenAddress];
+    }
+
+    function getCollateralValue(
+        address user,
+        address collatealTokenAddress
+    ) external view returns (uint256) {
+        uint256 totalCollateral = 0;
+        uint256 balance = s_collateralBalances[user][collatealTokenAddress];
+        if (balance > 0) {
+            totalCollateral = getTokenValueInUsd(
+                collatealTokenAddress,
+                balance
+            );
+        }
+        return totalCollateral;
     }
 }
