@@ -32,6 +32,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     PriceOracle private immutable i_priceOracle;
     address public immutable USDT_ADDRESS;
     address public immutable USDC_ADDRESS;
+    address public immutable WETH_ADDRESS;
+    address public immutable WBTC_ADDRESS;
     uint256 private constant COLLATERAL_THRESHOLD = 150;
     uint256 private constant INTEREST_RATE = 5;
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
@@ -292,6 +294,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             s_debt[user][tokenAddress] < amountToRepay,
             "Repay amount exceeds debt"
         );
+        uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
+        uint256 pricipal = s_debt[msg.sender][tokenAddress];
+        require(pricipal + interestAccured > 0, "No outstanding debt");
 
         i_interest.accureInterest(
             msg.sender,
@@ -353,6 +358,45 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
         if (!success) {
             revert DSCEngine__WithdrawCollateralFailed();
+        }
+    }
+
+    function liquidate(
+        address _borrower,
+        address tokenAddress,
+        uint256 repayAmount
+    ) external nonReentrant {
+        uint256 totalCollateralValue = getAccountCollateralValueInUSD(
+            _borrower
+        );
+
+        uint256 totalDebt = getTotalDebtOfAccount(_borrower);
+        uint256 healthFactor = ((totalCollateralValue * COLLATERAL_THRESHOLD) /
+            totalDebt) / 1e18;
+
+        require(healthFactor < 1, "User is undercollaterized");
+        require(
+            repayAmount > 0 && repayAmount <= totalDebt,
+            "Invalid repay amount"
+        );
+
+        uint256 liquidationBonus = 10;
+        uint256 seizeAmount = ((liquidationBonus + 100) * repayAmount) / 100;
+        require(
+            seizeAmount <= s_collateralDeposit[_borrower][tokenAddress],
+            "Not enough collateral to seize"
+        );
+        s_debt[_borrower][tokenAddress] -= repayAmount;
+        s_collateralDeposit[_borrower][tokenAddress] -= seizeAmount;
+
+        bool success1 = IERC20(tokenAddress).transfer(msg.sender, seizeAmount);
+        bool success2 = IERC20(tokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            repayAmount
+        );
+        if (!success1 && !success2) {
+            revert();
         }
     }
 
@@ -425,6 +469,36 @@ contract DSCEngine is ReentrancyGuard, Ownable {
                 collateralTokenAddress,
                 collateralAmount
             );
+    }
+
+    function getAccountCollateralValueInUSD(
+        address user
+    ) internal view returns (uint256) {
+        uint256 wethBalance = s_collateralDeposit[user][WETH_ADDRESS];
+        uint256 wbtcBalance = s_collateralDeposit[user][WBTC_ADDRESS];
+
+        uint256 wethPrice = i_priceOracle.getLatestPrice(WETH_ADDRESS);
+        uint256 wbtcPrice = i_priceOracle.getLatestPrice(WBTC_ADDRESS);
+
+        uint256 wethValue = (wethBalance * wethPrice) / 1e18;
+        uint256 wbtcValue = (wbtcBalance * wbtcPrice) / 1e18;
+
+        return wethValue + wbtcValue;
+    }
+
+    function getTotalDebtOfAccount(
+        address user
+    ) internal view returns (uint256) {
+        uint256 usdcDebtBalance = s_debt[user][USDC_ADDRESS];
+        uint256 usdtDebtBalance = s_debt[user][USDT_ADDRESS];
+
+        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+        uint256 usdtPrice = i_priceOracle.getLatestPrice(USDT_ADDRESS);
+
+        uint256 usdcValue = (usdcDebtBalance * usdcPrice) / 1e18;
+        uint256 usdtValue = (usdtDebtBalance * usdtPrice) / 1e18;
+
+        return usdcValue + usdtValue;
     }
 
     function getCollateralizationThresholdValid(
