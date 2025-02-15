@@ -13,7 +13,7 @@ const Header = () => {
 
   const handleLaunchApp = () => {
     if (isMounted) {
-      router.push("/dashboard"); // Navigate to dashboard
+      router.push("/connect-wallet"); 
     }
   };
 
@@ -37,7 +37,7 @@ const Header = () => {
 
       {/* Button Section */}
       <div className="flex items-center gap-4">
-      <button
+      <button 
   className="bg-gradient-to-r from-[#00C6FF] to-[#0072FF] px-7 py-3.5 rounded-full text-white font-semibold text-base hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
   onClick={handleLaunchApp}
 >
