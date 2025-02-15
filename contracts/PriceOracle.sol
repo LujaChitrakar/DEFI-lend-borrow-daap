@@ -56,6 +56,7 @@ contract PriceOracle is Ownable {
             s_priceFeeds[tokenAddress]
         );
         (, int256 price, , , ) = priceFeed.latestRoundData();
+        require(price > 0, "Invalid price from oracle");
         return uint256(price);
     }
 
@@ -70,7 +71,7 @@ contract PriceOracle is Ownable {
         uint256 amount
     ) public view returns (uint256) {
         uint256 price = getLatestPrice(tokenAddress);
-        return (amount * price);
+        return (amount * price) / 1e8;
     }
 
     /**
@@ -97,13 +98,13 @@ contract PriceOracle is Ownable {
 
     function getCollateralValue(
         address user,
-        address collatealTokenAddress
+        address collateralTokenAddress
     ) external view returns (uint256) {
         uint256 totalCollateral = 0;
-        uint256 balance = s_collateralBalances[user][collatealTokenAddress];
+        uint256 balance = s_collateralBalances[user][collateralTokenAddress];
         if (balance > 0) {
             totalCollateral = getTokenValueInUsd(
-                collatealTokenAddress,
+                collateralTokenAddress,
                 balance
             );
         }

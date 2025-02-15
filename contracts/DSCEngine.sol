@@ -16,6 +16,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     error DSCEngine__NeedsMoreThanZero();
     error DSCEngine__Mintfailed();
     error DSCEngine__TokenBurnFailed();
+    error DSCEngine__WithdrawCollateralFailed();
 
     /**STATE VARIABLES */
     mapping(address => mapping(address => uint256)) s_stableCoinDeposit;
@@ -31,7 +32,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     PriceOracle private immutable i_priceOracle;
     address public immutable USDT_ADDRESS;
     address public immutable USDC_ADDRESS;
-    uint256 private constant COLLATERAL_RATIO = 150;
+    uint256 private constant COLLATERAL_THRESHOLD = 150;
     uint256 private constant INTEREST_RATE = 5;
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
@@ -261,7 +262,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             collateralTokenAddress
         );
 
-        uint256 requiredCollateral = (stableCoinAmount * COLLATERAL_RATIO) /
+        uint256 requiredCollateral = (stableCoinAmount * COLLATERAL_THRESHOLD) /
             100;
         require(requiredCollateral <= collateralValue, "Not enough collateral");
 
@@ -307,6 +308,51 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         );
         if (!success) {
             revert();
+        }
+    }
+
+    function withdrawCollateral(
+        address collateralTokenAddress,
+        uint256 amountToWithdraw
+    )
+        public
+        moreThanZero(amountToWithdraw)
+        nonReentrant
+        isTokenAllowed(collateralTokenAddress)
+    {
+        uint256 totalDeposit = s_collateralDeposit[msg.sender][
+            collateralTokenAddress
+        ];
+        require(
+            totalDeposit >= amountToWithdraw,
+            " Amount exceeds total collateral deposited"
+        );
+
+        uint256 newCollateral = s_collateralDeposit[msg.sender][
+            collateralTokenAddress
+        ] - amountToWithdraw;
+        uint256 debtValue = getDebtValue(msg.sender, collateralTokenAddress);
+        uint256 collateralValue = getCollateralValue(
+            collateralTokenAddress,
+            newCollateral
+        );
+
+        require(
+            getCollateralizationThresholdValid(collateralValue, debtValue),
+            "Collateral threshold breached"
+        );
+
+        s_collateralDeposit[msg.sender][
+            collateralTokenAddress
+        ] -= amountToWithdraw;
+
+        bool success = IERC20(collateralTokenAddress).transfer(
+            msg.sender,
+            amountToWithdraw
+        );
+
+        if (!success) {
+            revert DSCEngine__WithdrawCollateralFailed();
         }
     }
 
@@ -360,5 +406,35 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             revert DSCEngine__TokenBurnFailed();
         }
         i_ltoken.burn(amountTokenToBurn);
+    }
+
+    function getDebtValue(
+        address user,
+        address tokenAddress
+    ) internal view returns (uint256) {
+        uint256 totalDebt = s_debt[user][tokenAddress];
+        return i_priceOracle.getTokenValueInUsd(tokenAddress, totalDebt);
+    }
+
+    function getCollateralValue(
+        address collateralTokenAddress,
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        return
+            i_priceOracle.getTokenValueInUsd(
+                collateralTokenAddress,
+                collateralAmount
+            );
+    }
+
+    function getCollateralizationThresholdValid(
+        uint256 collateralValue,
+        uint256 debtValue
+    ) internal pure returns (bool) {
+        if (debtValue == 0) {
+            return true;
+        }
+        uint256 collateralRatio = (collateralValue * 100) / debtValue;
+        return collateralRatio >= COLLATERAL_THRESHOLD;
     }
 }
