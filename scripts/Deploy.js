@@ -1,4 +1,5 @@
 const { ethers, network } = require("hardhat");
+const path = require("path");
 
 async function main() {
   console.log("Starting deployment...");
@@ -117,6 +118,7 @@ async function main() {
     ]);
   }
   console.log("Deployment complete");
+  saveFrontendFiles(dscEngine.target);
 }
 
 async function verify(contractAddress, args) {
@@ -132,6 +134,27 @@ async function verify(contractAddress, args) {
       console.log(e);
     }
   }
+}
+
+function saveFrontendFiles(contract_address) {
+  const fs = require("fs");
+  const contractsDir = path.join(__dirname, "..", "frontend", "contracts");
+
+  if (!fs.existsSync(contractsDir)) {
+    fs.mkdirSync(contractsDir);
+  }
+
+  fs.writeFileSync(
+    path.join(contractsDir, "contract-address.json"),
+    JSON.stringify({ DSCEngine: contract_address }, undefined, 2)
+  );
+
+  const PrimeOrNotArtifact = artifacts.readArtifactSync("DSCEngine");
+
+  fs.writeFileSync(
+    path.join(contractsDir, "DSCEngine.json"),
+    JSON.stringify(PrimeOrNotArtifact, null, 2)
+  );
 }
 
 main()
