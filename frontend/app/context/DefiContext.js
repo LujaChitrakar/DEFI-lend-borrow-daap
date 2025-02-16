@@ -6,9 +6,9 @@ export const DefiContext = createContext();
 
 export const DefiProvider =({children})=>{
 const [currentAccount,setCurrentAccount] = useState("Unknown");
-const [isOpenModalScreen, setOpenModalScreen] = useState(false);
+const [openModalScreen, setOpenModalScreen] = useState(null);
     return(
-        <DefiContext.Provider value={{currentAccount,isOpenModalScreen,setOpenModalScreen}}>
+        <DefiContext.Provider value={{currentAccount,openModalScreen,setOpenModalScreen}}>
             {children}
         </DefiContext.Provider>
     )
