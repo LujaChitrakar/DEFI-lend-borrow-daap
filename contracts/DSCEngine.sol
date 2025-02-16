@@ -19,17 +19,18 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     error DSCEngine__WithdrawCollateralFailed();
     error DSCEngine__TokenToMintExceedsDepositedStablecoin();
     error DSCEngine__LoanRepaymentFailed();
+    error DSCEngine__LiquidationFailed();
 
     /**STATE VARIABLES */
 
-    address public constant USDC_ADDRESS =
-        0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public constant USDT_ADDRESS =
-        0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    address public constant WETH_ADDRESS =
-        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address public constant WBTC_ADDRESS =
-        0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    address public immutable USDC_ADDRESS;
+    address public immutable USDT_ADDRESS;
+    address public immutable WETH_ADDRESS;
+    address public immutable WBTC_ADDRESS;
+    LendingToken private immutable i_ltoken;
+    InterestRateModel private immutable i_interest;
+    PriceOracle private immutable i_priceOracle;
+
     mapping(address => mapping(address => uint256)) s_stableCoinDeposit;
     mapping(address => mapping(address => uint256)) s_collateralDeposit;
     mapping(address => mapping(address => uint256)) s_debt;
@@ -37,14 +38,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     mapping(address => uint256) s_tokenMinted;
     mapping(address => uint256) s_startTimestamp;
 
-    LendingToken private immutable i_ltoken;
-    InterestRateModel private immutable i_interest;
-    PriceOracle private immutable i_priceOracle;
-    // IERC20 private immutable stablecoin;
-
     uint256 private constant COLLATERAL_THRESHOLD = 150;
     uint256 private constant INTEREST_RATE = 5;
-    // uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
     uint256 public s_totalStablecoin;
 
@@ -88,11 +83,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     modifier sufficientDeposit(address user, uint256 amount) {
         require(
-            s_collateralDeposit[user][USDC_ADDRESS] >= amount,
+            s_stableCoinDeposit[user][USDC_ADDRESS] >= amount,
             "Not sufficient deposit"
         );
         require(
-            s_collateralDeposit[user][USDT_ADDRESS] >= amount,
+            s_stableCoinDeposit[user][USDT_ADDRESS] >= amount,
             "Not sufficient deposit"
         );
         _;
@@ -101,11 +96,19 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     constructor(
         address priceOracleAddress,
         address dsctokenAddress,
-        address InterestRateModelAddress
+        address InterestRateModelAddress,
+        address usdcAddress,
+        address usdtAddress,
+        address wethAddress,
+        address wbtcAddress
     ) Ownable(msg.sender) {
         i_ltoken = LendingToken(dsctokenAddress);
         i_interest = InterestRateModel(InterestRateModelAddress);
         i_priceOracle = PriceOracle(priceOracleAddress);
+        USDC_ADDRESS = usdcAddress;
+        USDT_ADDRESS = usdtAddress;
+        WETH_ADDRESS = wethAddress;
+        WBTC_ADDRESS = wbtcAddress;
     }
 
     /**FOR LENDERS */
@@ -175,7 +178,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         require(address(i_ltoken) != address(0), "i_ltoken not initialized");
         uint256 depositedStablecoin = s_stableCoinDeposit[msg.sender][
             USDT_ADDRESS
-        ] + s_stableCoinDeposit[msg.sender][USDT_ADDRESS];
+        ] + s_stableCoinDeposit[msg.sender][USDC_ADDRESS];
 
         if (depositedStablecoin < amountTokenToMint) {
             revert DSCEngine__TokenToMintExceedsDepositedStablecoin();
@@ -375,6 +378,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     function liquidate(
         address _borrower,
         address tokenAddress,
+        address collateralAddress,
         uint256 repayAmount
     ) external nonReentrant {
         uint256 totalCollateralValue = getAccountCollateralValueInUSD(
@@ -394,20 +398,23 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 liquidationBonus = 10;
         uint256 seizeAmount = ((liquidationBonus + 100) * repayAmount) / 100;
         require(
-            seizeAmount <= s_collateralDeposit[_borrower][tokenAddress],
+            seizeAmount <= s_collateralDeposit[_borrower][collateralAddress],
             "Not enough collateral to seize"
         );
         s_debt[_borrower][tokenAddress] -= repayAmount;
-        s_collateralDeposit[_borrower][tokenAddress] -= seizeAmount;
+        s_collateralDeposit[_borrower][collateralAddress] -= seizeAmount;
 
-        bool success1 = IERC20(tokenAddress).transfer(msg.sender, seizeAmount);
+        bool success1 = IERC20(collateralAddress).transfer(
+            msg.sender,
+            seizeAmount
+        );
         bool success2 = IERC20(tokenAddress).transferFrom(
             msg.sender,
             address(this),
             repayAmount
         );
-        if (!success1 && !success2) {
-            revert();
+        if (!success1 || !success2) {
+            revert DSCEngine__LiquidationFailed();
         }
     }
 

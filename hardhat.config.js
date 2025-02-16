@@ -4,9 +4,9 @@ require("@nomicfoundation/hardhat-toolbox");
 module.exports = {
   solidity: "0.8.28",
   networks: {
-    // sepolia: {
-    //   url: SEPOLIA_URL,
-    //   accounts: [SEPOLIA_PRIVATE_KEY],
-    // },
+    //   sepolia: {
+    //     url: SEPOLIA_URL,
+    //     accounts: [SEPOLIA_PRIVATE_KEY],
+    //   },
   },
 };

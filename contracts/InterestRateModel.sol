@@ -9,8 +9,8 @@ contract InterestRateModel is Ownable {
     /**STATE VARIABLES */
     uint256 public constant SECONDS_IN_YEAR = 365 * 24 * 60 * 60;
     uint256 public constant RATE_PRECISION = 1e4;
-    uint256 private constant LENDER_INTEREST_RATE = 5;
-    uint256 private constant BORROWER_INTEREST_RATE = 7;
+    uint256 private constant LENDER_INTEREST_RATE = 500;
+    uint256 private constant BORROWER_INTEREST_RATE = 700;
 
     mapping(address => uint256) public s_accuredInterest;
     mapping(address => uint256) public s_lastInterestTimestamp;
@@ -58,7 +58,7 @@ contract InterestRateModel is Ownable {
         uint256 principal,
         bool isLending
     ) public {
-        require(principal > 0, "No prevvious timestamp");
+        require(principal > 0, "Principal must be greater than zero");
         uint256 interest = _calculateInterest(user, principal, isLending);
         s_accuredInterest[user] += interest;
         s_lastInterestTimestamp[user] = block.timestamp;
