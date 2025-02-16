@@ -2,6 +2,8 @@
 import React from 'react';
 import DashboardHeader from './DashboardHeader';
 import Container from "../components/container/page"
+import LendModal from "../components/modal/LendModal"
+import BorrowModal from "../components/modal/BorrowModal"
 
 const page = () => {
   const data1 = [
@@ -104,6 +106,10 @@ const page = () => {
   ];
   return (
     <div>
+       <LendModal/>
+       <BorrowModal/>
+     <div id="modal-root">
+      </div>
     <div className=" bg-gray-800 text-white">
     
         <DashboardHeader />
