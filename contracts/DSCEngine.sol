@@ -521,4 +521,82 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 collateralRatio = (collateralValue * 100) / debtValue;
         return collateralRatio >= COLLATERAL_THRESHOLD;
     }
+
+    function getCollateralDepositBalance(
+        address user,
+        address collateralAddress
+    ) external view returns (uint256) {
+        return s_collateralDeposit[user][collateralAddress];
+    }
+
+    function getDebtBalance(
+        address user,
+        address tokenAddress
+    ) external view returns (uint256) {
+        return s_debt[user][tokenAddress];
+    }
+
+    function getTotalStablecoinSupply() external view returns (uint256) {
+        return s_totalStablecoin;
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        uint256 totalCollateralValueInUsd = getAccountCollateralValueInUSD(
+            user
+        );
+        uint256 totalDebtInUsd = getTotalDebtOfAccount(user);
+
+        if (totalDebtInUsd == 0) return type(uint256).max;
+
+        return
+            (totalCollateralValueInUsd * PRECISION * COLLATERAL_THRESHOLD) /
+            (totalDebtInUsd * 100);
+    }
+
+    function getUserCollateralValueInUsd(
+        address user
+    ) external view returns (uint256) {
+        return getAccountCollateralValueInUSD(user);
+    }
+
+    function getUserTotalDebtInUsd(
+        address user
+    ) external view returns (uint256) {
+        return getTotalDebtOfAccount(user);
+    }
+
+    function getTokenPriceInUsd(
+        address tokenAddress
+    ) external view returns (uint256) {
+        return i_priceOracle.getLatestPrice(tokenAddress);
+    }
+
+    function getAccuredInterest(address user) external view returns (uint256) {
+        return i_interest.getAccuredInterest(user);
+    }
+
+    function getCollateralThreshold() external pure returns (uint256) {
+        return COLLATERAL_THRESHOLD;
+    }
+
+    function getInterest() external pure returns (uint256) {
+        return INTEREST_RATE;
+    }
+
+    function isCollateralValid(
+        address collateral
+    ) external view returns (bool) {
+        return collateral == WBTC_ADDRESS || collateral == WETH_ADDRESS;
+    }
+
+    function isStablecoinValid(
+        address stablecoin
+    ) external view returns (bool) {
+        return stablecoin == USDC_ADDRESS || stablecoin == USDT_ADDRESS;
+    }
+
+    function canUserBeLiquidated(address user) external view returns (bool) {
+        uint256 healthFactor = this.getHealthFactor(user);
+        return healthFactor < PRECISION;
+    }
 }
