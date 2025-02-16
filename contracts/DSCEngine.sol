@@ -102,9 +102,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         address wethAddress,
         address wbtcAddress
     ) Ownable(msg.sender) {
+        i_priceOracle = PriceOracle(priceOracleAddress);
         i_ltoken = LendingToken(dsctokenAddress);
         i_interest = InterestRateModel(InterestRateModelAddress);
-        i_priceOracle = PriceOracle(priceOracleAddress);
         USDC_ADDRESS = usdcAddress;
         USDT_ADDRESS = usdtAddress;
         WETH_ADDRESS = wethAddress;

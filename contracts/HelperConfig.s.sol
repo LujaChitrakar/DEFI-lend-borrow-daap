@@ -1,7 +1,7 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.18;
 import {MockV3Aggregator} from "../test/mocks/MockV3Aggregator.sol";
-import {ERC20Mock} from "../test/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "./MockToken.sol";
 
 contract HelperConfig {
     struct NetworkConfig {
@@ -73,11 +73,24 @@ contract HelperConfig {
             DECIMALS,
             USDT_USD_PRICE
         );
+        uint256 initialSupply = 1000;
 
-        ERC20Mock wethMock = new ERC20Mock();
-        ERC20Mock wbtcMock = new ERC20Mock();
-        ERC20Mock usdtMock = new ERC20Mock();
-        ERC20Mock usdcMock = new ERC20Mock();
+        ERC20Mock wethMock = new ERC20Mock(
+            "Wrapped ETH",
+            "WETH",
+            initialSupply
+        );
+        ERC20Mock wbtcMock = new ERC20Mock(
+            "Wrapped BTC",
+            "WBTC",
+            initialSupply
+        );
+        ERC20Mock usdcMock = new ERC20Mock(
+            "USD Coin",
+            "USDC Coin",
+            initialSupply
+        );
+        ERC20Mock usdtMock = new ERC20Mock("USD Tether", "USDT", initialSupply);
 
         return
             NetworkConfig({
