@@ -1,6 +1,5 @@
-deposit and withdraw of lender done
-interest logic left
+liquidate ko fixed
 
-timestamp baki xa 
-
-logic for interest 
+deposit collateral
+repay loans
+withdraw collateral baki

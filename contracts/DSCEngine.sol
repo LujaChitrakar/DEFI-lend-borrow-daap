@@ -2,7 +2,8 @@
 pragma solidity ^0.8.18;
 import {LendingToken} from "./LendingToken.sol";
 import {InterestRateModel} from "./InterestRateModel.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {PriceOracle} from "./PriceOracle.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
@@ -15,20 +16,32 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     error DSCEngine__NeedsMoreThanZero();
     error DSCEngine__Mintfailed();
     error DSCEngine__TokenBurnFailed();
+    error DSCEngine__WithdrawCollateralFailed();
+    error DSCEngine__TokenToMintExceedsDepositedStablecoin();
+    error DSCEngine__LoanRepaymentFailed();
+    error DSCEngine__LiquidationFailed();
 
     /**STATE VARIABLES */
+
+    address public immutable USDC_ADDRESS;
+    address public immutable USDT_ADDRESS;
+    address public immutable WETH_ADDRESS;
+    address public immutable WBTC_ADDRESS;
+    LendingToken private immutable i_ltoken;
+    InterestRateModel private immutable i_interest;
+    PriceOracle private immutable i_priceOracle;
+
     mapping(address => mapping(address => uint256)) s_stableCoinDeposit;
-    mapping(address => mapping(address => uint256)) s_collateralDeposit;
+    mapping(address => uint256) s_collateralDeposit;
+    mapping(address => mapping(address => uint256)) s_debt;
     mapping(address => address) private s_priceFeed;
     mapping(address => uint256) s_tokenMinted;
     mapping(address => uint256) s_startTimestamp;
 
-    LendingToken private immutable i_ltoken;
-    InterestRateModel private immutable i_interest;
-    address public immutable USDT_ADDRESS;
-    address public immutable USDC_ADDRESS;
-    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant COLLATERAL_THRESHOLD = 150;
+    uint256 private constant INTEREST_RATE = 5;
     uint256 private constant PRECISION = 1e18;
+    uint256 public s_totalStablecoin;
 
     /**EVENTS */
     event StableCoinDeposited(
@@ -36,27 +49,30 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         address indexed token,
         uint256 amount
     );
-    event CollateralDeposited(
-        address indexed from,
-        address indexed collateral,
-        uint256 indexed amount
-    );
+    event CollateralDeposited(address indexed from, uint256 indexed amount);
     event StableCoinWithdrawed(
         address indexed from,
         address indexed token,
         uint256 indexed amount
     );
     event tokenMinted(address indexed to, uint256 indexed amount);
+    event Liquidation(
+        address indexed liquidator,
+        address indexed borrower,
+        address indexed debtToken,
+        uint256 debtAmount,
+        uint256 collateralSeized
+    );
 
     /**MODIFIERS */
-    modifier isTokenAllowed(address token) {
-        if (s_priceFeed[token] == address(0)) {
+    modifier validStablecoin(address token) {
+        if (token != USDC_ADDRESS && token != USDT_ADDRESS) {
             revert DSCEngine__NotAllowedToken();
         }
         _;
     }
-    modifier isCollateralAllowed(address collateral) {
-        if (s_priceFeed[collateral] == address(0)) {
+    modifier validCollateral(address collateral) {
+        if (collateral != WBTC_ADDRESS && collateral != WETH_ADDRESS) {
             revert DSCEngine__NotAllowedCollateral();
         }
         _;
@@ -70,34 +86,32 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     modifier sufficientDeposit(address user, uint256 amount) {
         require(
-            s_collateralDeposit[user][USDC_ADDRESS] >= amount,
+            s_stableCoinDeposit[user][USDC_ADDRESS] >= amount,
             "Not sufficient deposit"
         );
         require(
-            s_collateralDeposit[user][USDT_ADDRESS] >= amount,
+            s_stableCoinDeposit[user][USDT_ADDRESS] >= amount,
             "Not sufficient deposit"
         );
         _;
     }
 
     constructor(
-        address[] memory StableCoinAddresses,
-        address[] memory priceFeedAddresses,
+        address priceOracleAddress,
         address dsctokenAddress,
-        address _usdtAddress,
-        address _usdcAddress,
-        address InterestRateModelAddress
+        address InterestRateModelAddress,
+        address usdcAddress,
+        address usdtAddress,
+        address wethAddress,
+        address wbtcAddress
     ) Ownable(msg.sender) {
-        if (StableCoinAddresses.length != priceFeedAddresses.length) {
-            revert();
-        }
-        for (uint256 i = 0; i < StableCoinAddresses.length; i++) {
-            s_priceFeed[StableCoinAddresses[i]] = priceFeedAddresses[i];
-        }
+        i_priceOracle = PriceOracle(priceOracleAddress);
         i_ltoken = LendingToken(dsctokenAddress);
         i_interest = InterestRateModel(InterestRateModelAddress);
-        USDT_ADDRESS = _usdtAddress;
-        USDC_ADDRESS = _usdcAddress;
+        USDC_ADDRESS = usdcAddress;
+        USDT_ADDRESS = usdtAddress;
+        WETH_ADDRESS = wethAddress;
+        WBTC_ADDRESS = wbtcAddress;
     }
 
     /**FOR LENDERS */
@@ -105,7 +119,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     function depositStableCoinsAndMintToken(
         address tokenAddress,
         uint256 amountStableCoin
-    ) external {
+    )
+        external
+        validStablecoin(tokenAddress)
+        moreThanZero(amountStableCoin)
+        nonReentrant
+    {
         depositStableCoins(tokenAddress, amountStableCoin);
         mintLendingToken(amountStableCoin);
     }
@@ -114,7 +133,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         address tokenAddress,
         uint256 amountStableCoin,
         uint256 amountTokenToBurn
-    ) external {
+    )
+        external
+        validStablecoin(tokenAddress)
+        moreThanZero(amountStableCoin)
+        nonReentrant
+    {
         withdrawStableCoin(tokenAddress, amountStableCoin);
         burn(amountTokenToBurn);
     }
@@ -124,7 +148,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 amountStableCoin
     )
         public
-        isTokenAllowed(tokenAddress)
+        validStablecoin(tokenAddress)
         moreThanZero(amountStableCoin)
         nonReentrant
     {
@@ -142,7 +166,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             revert DSCEngine__TransferFailed();
         }
         s_stableCoinDeposit[msg.sender][tokenAddress] += amountStableCoin;
-
+        s_totalStablecoin += amountStableCoin;
         emit StableCoinDeposited(msg.sender, tokenAddress, amountStableCoin);
     }
 
@@ -155,6 +179,13 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         sufficientDeposit(msg.sender, amountTokenToMint)
     {
         require(address(i_ltoken) != address(0), "i_ltoken not initialized");
+        uint256 depositedStablecoin = s_stableCoinDeposit[msg.sender][
+            USDT_ADDRESS
+        ] + s_stableCoinDeposit[msg.sender][USDC_ADDRESS];
+
+        if (depositedStablecoin < amountTokenToMint) {
+            revert DSCEngine__TokenToMintExceedsDepositedStablecoin();
+        }
 
         s_tokenMinted[msg.sender] += amountTokenToMint;
         emit tokenMinted(msg.sender, amountTokenToMint);
@@ -169,7 +200,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 amountStableCoin
     )
         public
-        isTokenAllowed(tokenAddress)
+        validStablecoin(tokenAddress)
         moreThanZero(amountStableCoin)
         nonReentrant
     {
@@ -191,6 +222,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
         s_stableCoinDeposit[msg.sender][tokenAddress] -= amountStableCoin;
         i_interest.resetInterest(msg.sender);
+        s_totalStablecoin -= amountStableCoin;
         emit StableCoinWithdrawed(msg.sender, tokenAddress, amountStableCoin);
     }
 
@@ -201,43 +233,200 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     }
 
     /**FOR BORROWER */
-    function depositCollateral(
-        address collateralAddress,
-        uint256 collateralAmount
+
+    function depositStablecoinAndBorrowStablecoin(
+        address tokenAddress
     )
         public
-        moreThanZero(collateralAmount)
+        payable
+        moreThanZero(msg.value)
         nonReentrant
-        isCollateralAllowed(collateralAddress)
+    // validCollateral(collateralAddress)
+    {
+        depositCollateral();
+        borrowStableCoins(tokenAddress, msg.value);
+    }
+
+    function depositCollateral()
+        public
+        payable
+        moreThanZero(msg.value)
+        nonReentrant
+    // validCollateral(collateralAddress)
     {
         i_interest.accureInterest(
             msg.sender,
-            s_stableCoinDeposit[msg.sender][collateralAddress],
+            s_collateralDeposit[msg.sender],
             false
         );
-        bool success = IERC20(collateralAddress).transferFrom(
-            msg.sender,
-            address(this),
-            collateralAmount
-        );
-        if (!success) {
-            revert DSCEngine__TransferFailed();
-        }
-        s_collateralDeposit[msg.sender][collateralAddress] += collateralAmount;
 
-        emit CollateralDeposited(
-            msg.sender,
-            collateralAddress,
-            collateralAmount
-        );
+        s_collateralDeposit[msg.sender] += msg.value;
+
+        emit CollateralDeposited(msg.sender, msg.value);
     }
 
-    /**ADMIN FUNCTIONS */
-    function addAllowedToken(
-        address token,
-        address priceFeed
-    ) external onlyOwner {
-        s_priceFeed[token] = priceFeed;
+    function borrowStableCoins(
+        address tokenAddress,
+        uint256 stableCoinAmount
+    )
+        public
+        moreThanZero(stableCoinAmount)
+        nonReentrant
+        validStablecoin(tokenAddress)
+    {
+        i_interest.accureInterest(
+            msg.sender,
+            s_debt[msg.sender][tokenAddress],
+            false
+        );
+
+        uint256 collateralValue = i_priceOracle.getCollateralValue(msg.sender);
+
+        uint256 requiredCollateral = (stableCoinAmount * COLLATERAL_THRESHOLD) /
+            100;
+        require(requiredCollateral <= collateralValue, "Not enough collateral");
+
+        s_debt[msg.sender][tokenAddress] += stableCoinAmount;
+
+        bool success = IERC20(tokenAddress).transfer(
+            msg.sender,
+            stableCoinAmount
+        );
+        if (!success) {
+            revert();
+        }
+        s_totalStablecoin -= stableCoinAmount;
+    }
+
+    function repayLoan(
+        address tokenAddress,
+        uint256 stablecoinAmountToRepay
+    )
+        public
+        moreThanZero(stablecoinAmountToRepay)
+        nonReentrant
+        validStablecoin(tokenAddress)
+    {
+        require(
+            s_debt[msg.sender][tokenAddress] >= stablecoinAmountToRepay,
+            "Repay amount exceeds debt"
+        );
+        uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
+        uint256 principal = s_debt[msg.sender][tokenAddress];
+        require(principal + interestAccured > 0, "No outstanding debt");
+
+        i_interest.accureInterest(
+            msg.sender,
+            s_debt[msg.sender][tokenAddress],
+            false
+        );
+        s_debt[msg.sender][tokenAddress] -= stablecoinAmountToRepay;
+
+        s_totalStablecoin += stablecoinAmountToRepay;
+        bool success = IERC20(tokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            stablecoinAmountToRepay
+        );
+        if (!success) {
+            revert DSCEngine__LoanRepaymentFailed();
+        }
+    }
+
+    function withdrawCollateral(
+        address tokenAddress,
+        uint256 amountToWithdraw
+    ) public moreThanZero(amountToWithdraw) nonReentrant {
+        uint256 totalDeposit = s_collateralDeposit[msg.sender];
+        require(
+            totalDeposit >= amountToWithdraw,
+            " Amount exceeds total collateral deposited"
+        );
+
+        uint256 newCollateral = totalDeposit - amountToWithdraw;
+
+        uint256 debtValue = getDebtValue(msg.sender, tokenAddress);
+        uint256 collateralValue = getCollateralValue(newCollateral);
+        payable(msg.sender).transfer(amountToWithdraw);
+
+        require(
+            getCollateralizationThresholdValid(collateralValue, debtValue),
+            "Collateral threshold breached"
+        );
+
+        s_collateralDeposit[msg.sender] = newCollateral;
+    }
+
+    function liquidate(
+        address _borrower,
+        address tokenAddress,
+        uint256 repayAmount
+    )
+        external
+        nonReentrant
+        validStablecoin(tokenAddress)
+        moreThanZero(repayAmount)
+    {
+        require(s_debt[_borrower][tokenAddress] > 0, "Borrower has no debt");
+        uint256 totalCollateralValue = getAccountCollateralValueInUSD(
+            _borrower
+        );
+
+        uint256 totalDebt = getTotalDebtOfAccount(_borrower);
+        uint256 healthFactor = ((totalCollateralValue * COLLATERAL_THRESHOLD) /
+            totalDebt) / 1e18;
+
+        require(healthFactor < PRECISION, "User is undercollaterized");
+        require(
+            repayAmount > 0 && repayAmount <= s_debt[_borrower][tokenAddress],
+            "Invalid repay amount"
+        );
+
+        uint256 liquidationBonus = 10;
+        uint256 repayAmountInUsd = i_priceOracle.getTokenValueInUsd(
+            tokenAddress,
+            repayAmount
+        );
+        uint256 seizeAmountInUsd = (repayAmountInUsd *
+            (100 + liquidationBonus)) / 100;
+
+        uint256 ethPricePerUnit = i_priceOracle.getEthLatestPrice();
+        uint256 seizeAmountInEth = (seizeAmountInUsd * 1e18) / ethPricePerUnit;
+
+        require(
+            seizeAmountInUsd <= s_collateralDeposit[_borrower],
+            "Not enough collateral to seize"
+        );
+        bool success = IERC20(tokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            repayAmount
+        );
+        if (!success) {
+            revert DSCEngine__LiquidationFailed();
+        }
+
+        s_debt[_borrower][tokenAddress] -= repayAmount;
+        s_collateralDeposit[_borrower] -= seizeAmountInEth;
+
+        (bool ethTransferSuccess, ) = payable(msg.sender).call{
+            value: seizeAmountInEth
+        }("");
+        if (!ethTransferSuccess) {
+            revert DSCEngine__LiquidationFailed();
+        }
+        i_priceOracle.updateCollateral(
+            _borrower,
+            s_collateralDeposit[_borrower]
+        );
+
+        emit Liquidation(
+            msg.sender,
+            _borrower,
+            tokenAddress,
+            repayAmount,
+            seizeAmountInEth
+        );
     }
 
     /**VIEW FUNCTIONS */
@@ -284,17 +473,132 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         i_ltoken.burn(amountTokenToBurn);
     }
 
-    function _getTokenAmountFromUsd(
-        address tokenAddress,
-        uint256 usdAmountInWei
-    ) public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            s_priceFeed[tokenAddress]
+    function getDebtValue(
+        address user,
+        address tokenAddress
+    ) internal view returns (uint256) {
+        uint256 totalDebt = s_debt[user][tokenAddress];
+        return i_priceOracle.getTokenValueInUsd(tokenAddress, totalDebt);
+    }
+
+    function getCollateralValue(
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        return i_priceOracle.getEthValueInUsd(collateralAmount);
+    }
+
+    function getAccountCollateralValueInUSD(
+        address user
+    ) internal view returns (uint256) {
+        uint256 ethBalance = s_collateralDeposit[user];
+
+        uint256 ethPrice = i_priceOracle.getEthLatestPrice();
+
+        uint256 ethValue = (ethBalance * ethPrice) / 1e18;
+
+        return ethValue;
+    }
+
+    function getTotalDebtOfAccount(
+        address user
+    ) internal view returns (uint256) {
+        uint256 usdcDebtBalance = s_debt[user][USDC_ADDRESS];
+        uint256 usdtDebtBalance = s_debt[user][USDT_ADDRESS];
+
+        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+        uint256 usdtPrice = i_priceOracle.getLatestPrice(USDT_ADDRESS);
+
+        uint256 usdcValue = (usdcDebtBalance * usdcPrice) / 1e18;
+        uint256 usdtValue = (usdtDebtBalance * usdtPrice) / 1e18;
+
+        return usdcValue + usdtValue;
+    }
+
+    function getCollateralizationThresholdValid(
+        uint256 collateralValue,
+        uint256 debtValue
+    ) internal pure returns (bool) {
+        if (debtValue == 0) {
+            return true;
+        }
+        uint256 collateralRatio = (collateralValue * 100) / debtValue;
+        return collateralRatio >= COLLATERAL_THRESHOLD;
+    }
+
+    function getCollateralDepositBalance(
+        address user
+    ) external view returns (uint256) {
+        return s_collateralDeposit[user];
+    }
+
+    function getDebtBalance(
+        address user,
+        address tokenAddress
+    ) external view returns (uint256) {
+        return s_debt[user][tokenAddress];
+    }
+
+    function getTotalStablecoinSupply() external view returns (uint256) {
+        return s_totalStablecoin;
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        uint256 totalCollateralValueInUsd = getAccountCollateralValueInUSD(
+            user
         );
-        (, int256 price, , , ) = priceFeed.latestRoundData();
+        uint256 totalDebtInUsd = getTotalDebtOfAccount(user);
+
+        if (totalDebtInUsd == 0) return type(uint256).max;
 
         return
-            (usdAmountInWei * PRECISION) /
-            (uint256(price) * ADDITIONAL_FEED_PRECISION);
+            (totalCollateralValueInUsd * PRECISION * COLLATERAL_THRESHOLD) /
+            (totalDebtInUsd * 100);
+    }
+
+    function getUserCollateralValueInUsd(
+        address user
+    ) external view returns (uint256) {
+        return getAccountCollateralValueInUSD(user);
+    }
+
+    function getUserTotalDebtInUsd(
+        address user
+    ) external view returns (uint256) {
+        return getTotalDebtOfAccount(user);
+    }
+
+    function getTokenPriceInUsd(
+        address tokenAddress
+    ) external view returns (uint256) {
+        return i_priceOracle.getLatestPrice(tokenAddress);
+    }
+
+    function getAccuredInterest(address user) external view returns (uint256) {
+        return i_interest.getAccuredInterest(user);
+    }
+
+    function getCollateralThreshold() external pure returns (uint256) {
+        return COLLATERAL_THRESHOLD;
+    }
+
+    function getInterest() external pure returns (uint256) {
+        return INTEREST_RATE;
+    }
+
+    function isCollateralValid(
+        address collateral
+    ) external view returns (bool) {
+        return collateral == WBTC_ADDRESS || collateral == WETH_ADDRESS;
+    }
+
+    function isStablecoinValid(
+        address stablecoin
+    ) external view returns (bool) {
+        return stablecoin == USDC_ADDRESS || stablecoin == USDT_ADDRESS;
+    }
+
+    function canUserBeLiquidated(address user) external view returns (bool) {
+        uint256 healthFactor = this.getHealthFactor(user);
+        return healthFactor < PRECISION;
     }
 }
