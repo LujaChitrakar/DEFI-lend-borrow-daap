@@ -45,6 +45,13 @@ module.exports = {
   mocha: {
     timeout: 300000, // 5 minutes
   },
+  settings: {
+    viaIR: true,
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+  },
   // paths: {
   //   artifacts: "./artifacts",
   //   cache: "./cache",
