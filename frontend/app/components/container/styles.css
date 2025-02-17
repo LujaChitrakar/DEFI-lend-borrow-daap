@@ -1,4 +1,4 @@
-@keyframes gradient-border {
+/* @keyframes gradient-border {
     0% {
       background-position: 0% 50%;
     }
@@ -8,9 +8,9 @@
     100% {
       background-position: 0% 50%;
     }
-  }
+  } */
   
-  .gradient-box {
+  /* .gradient-box {
     position: relative;
     background: transparent;
     border-radius: 15px;
@@ -28,4 +28,4 @@
     border-radius: 15px;
     z-index: -1;
     animation: gradient-border 5s ease infinite;
-  }
+  } */
