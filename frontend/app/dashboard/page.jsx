@@ -1,11 +1,49 @@
 "use client";
-import React from "react";
+import React, { useContext, useEffect } from "react";
 import DashboardHeader from "./DashboardHeader";
 import Container from "../components/container/page";
 import LendModal from "../components/modal/LendModal";
 import BorrowModal from "../components/modal/BorrowModal";
 
+import DefiContract from "../../contracts/DSCEngine.json";
+import DefiContractAddress from "../../contracts/contract-address.json";
+import { DefiContext } from "../context/DefiContext";
+import { ethers } from "ethers";
+
+const contractAbi = DefiContract.abi;
+const contractAddress = DefiContractAddress.DSCEngine;
 const Page = () => {
+
+    const {setAccounts,setUserAddress,setCurrentState}=useContext(DefiContext);
+  
+    useEffect(()=>{
+
+    const connectWallet = async()=>{
+      const {ethereum} = window;
+      if(ethereum){
+        window.ethereum.on("chainChanged", () => window.location.reload());
+        window.ethereum.on("accountsChanged", () => window.location.reload());
+        const accountsReq = await ethereum.request({method:"eth_requestAccounts"});
+        const provider = new ethers.BrowserProvider(ethereum);
+        
+        const signer = await provider.getSigner();
+        
+        
+        const contract = new ethers.Contract(
+          contractAddress,
+          contractAbi,
+          signer
+        )
+     
+      
+              setAccounts(accountsReq);
+              setUserAddress(accountsReq[0]);
+              setCurrentState({provider,signer,contract})
+            }
+          }
+          connectWallet();
+  },[])
+
   // Sections that remain empty until backend integration
   const totalLendingTokens = [{ message: "No lending tokens yet." }];
   const totalCollateral = [{ message: "No collateral provided yet." }];

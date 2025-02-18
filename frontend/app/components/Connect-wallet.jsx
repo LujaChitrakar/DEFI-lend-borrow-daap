@@ -1,11 +1,21 @@
-import React, { useState } from "react";
+"use client"
+
+import React, {  useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet2, ArrowRight, Activity, DollarSign, Boxes, Sparkles, Gem } from "lucide-react";
 
+
+
+
 const ConnectWallet = () => {
   const router = useRouter();
+
+
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+
 
   const handleWalletConnect = async () => {
     setIsConnecting(true);
