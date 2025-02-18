@@ -234,7 +234,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FOR BORROWER */
 
-    function depositStablecoinAndBorrowStablecoin(
+    function depositCollateralAndBorrowStablecoin(
         address tokenAddress
     )
         public
