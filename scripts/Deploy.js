@@ -10,19 +10,9 @@ async function main() {
 
   const networkConfig = await helperConfig.activeNetworkConfig();
 
-  let weth, wbtc, usdc, usdt;
+  let usdc, usdt;
   const initialSupply = ethers.parseEther("10000000");
 
-  weth = await ethers.deployContract("ERC20Mock", [
-    "Wrapped ETH",
-    "WETH",
-    initialSupply,
-  ]);
-  wbtc = await ethers.deployContract("ERC20Mock", [
-    "Wrapped BTC",
-    "WBTC",
-    initialSupply,
-  ]);
   usdc = await ethers.deployContract("ERC20Mock", [
     "USD Coin",
     "USDC",
@@ -34,14 +24,10 @@ async function main() {
     initialSupply,
   ]);
 
-  await weth.waitForDeployment();
-  await wbtc.waitForDeployment();
   await usdc.waitForDeployment();
   await usdt.waitForDeployment();
 
   console.log("Mock tokens deployed:");
-  console.log("WETH:", weth.target);
-  console.log("WBTC:", wbtc.target);
   console.log("USDC:", usdc.target);
   console.log("USDT:", usdt.target);
 
@@ -49,8 +35,6 @@ async function main() {
   await priceOracle.waitForDeployment();
   console.log("priceOracle deployed to:", priceOracle.target);
 
-  await priceOracle.setPriceFeed(weth.target, networkConfig.wethUsdPriceFeed);
-  await priceOracle.setPriceFeed(wbtc.target, networkConfig.wbtcUsdPriceFeed);
   await priceOracle.setPriceFeed(usdc.target, networkConfig.usdcUsdPriceFeed);
   await priceOracle.setPriceFeed(usdt.target, networkConfig.usdtUsdPriceFeed);
   console.log("Price Feed set in PriceOracle");
@@ -69,8 +53,6 @@ async function main() {
     interestRateModel.target,
     usdc.target,
     usdt.target,
-    weth.target,
-    wbtc.target,
   ]);
   await dscEngine.waitForDeployment();
   console.log("DSCEngine deployed to:", dscEngine.target);
@@ -81,8 +63,6 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const mintAmount = ethers.parseEther("100000");
 
-  await weth.mint(deployer.address, mintAmount);
-  await wbtc.mint(deployer.address, mintAmount);
   await usdc.mint(deployer.address, mintAmount);
   await usdt.mint(deployer.address, mintAmount);
 
@@ -93,15 +73,11 @@ async function main() {
 
     await Promise.all([
       dscEngine.deployTransaction.wait(6),
-      weth.deployTransaction.wait(6),
-      wbtc.deployTransaction.wait(6),
       usdc.deployTransaction.wait(6),
       usdt.deployTransaction.wait(6),
     ]);
     console.log("Verifying contract ....");
 
-    await verify(weth.target, ["Wrapped ETH", "WETH", initialSupply]);
-    await verify(wbtc.target, ["Wrapped BTC", "WBTC", initialSupply]);
     await verify(usdc.target, ["USD Coin", "USDC", initialSupply]);
     await verify(usdt.target, ["USD Tether", "USDT", initialSupply]);
     await verify(priceOracle.target, []);
@@ -113,8 +89,6 @@ async function main() {
       interestRateModel.target,
       usdc.target,
       usdt.target,
-      weth.target,
-      wbtc.target,
     ]);
   }
   console.log("Deployment complete");
