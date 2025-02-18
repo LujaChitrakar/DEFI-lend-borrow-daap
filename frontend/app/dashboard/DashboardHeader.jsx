@@ -1,12 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { DefiContext } from "../context/DefiContext";
 // import { Button } from "antd";
 
 const DashboardHeader = () => {
+
+  const {userAddress} = useContext(DefiContext)
+
   const [activeTab, setActiveTab] = useState("Dashboard");
 
+  console.log(userAddress)
   const handleTabClick = (tab) => {
     setActiveTab(tab);
   };
@@ -15,7 +20,7 @@ const DashboardHeader = () => {
     <header className="w-full px-12 py-6 bg-gray-900 text-white flex justify-between items-center hover:opacity-90 transition-all transform  shadow-lg ">
       {/* Left Section: Logo and Tabs */}
       <div className="flex items-center space-x-12  hover:scale-105">
-        {/* Logo */}
+        {/* Logo */} 
         <div className="flex items-center space-x-3">
           <Image src="/logo.png" alt="LendWise Logo" width={110} height={100} />
         </div>
@@ -41,9 +46,12 @@ const DashboardHeader = () => {
 
       {/* Right Section: Buttons */}
       <div className="flex items-center space-x-4">
-      <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-semibold rounded-lg shadow-md hover:scale-105 transform transition-all">
+     { userAddress?.length<1 ?(<button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-semibold rounded-lg shadow-md hover:scale-105 transform transition-all">
   Connect Wallet
-</button>
+</button>):
+     ( <div className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-semibold rounded-lg shadow-md hover:scale-105 transform transition-all">
+  {userAddress}
+</div>)}
       </div>
     </header>
   );
