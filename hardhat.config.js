@@ -25,11 +25,11 @@ module.exports = {
       chainId: 11155111,
     },
   },
-  // etherscan: {
-  //   apiKey: {
-  //     sepolia: process.env.ETHERSCAN_API_KEY || "",
-  //   },
-  // },
+  etherscan: {
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY,
+    },
+  },
   // gasReporter: {
   //   enabled: process.env.REPORT_GAS ? true : false,
   //   currency: "USD",
