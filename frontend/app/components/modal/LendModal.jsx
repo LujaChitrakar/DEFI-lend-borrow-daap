@@ -30,11 +30,6 @@ const LendModal = () => {
           </button>
         </div>
 
-        {/* Network Switch Warning */}
-        <div className="bg-red-900/70 text-red-300 p-3 rounded-lg text-sm flex justify-between items-center mb-5">
-          <span>Please switch to Ethereum Sepolia.</span>
-          <button className="text-red-400 font-semibold hover:underline">Switch</button>
-        </div>
 
         {/* Amount Input */}
         <div className="space-y-2">
@@ -57,7 +52,7 @@ const LendModal = () => {
         <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 my-5">
           <div className="flex justify-between text-sm text-gray-400">
             <span>Supply APY</span> 
-            <span className="text-white">0%</span>
+            <span className="text-white">5%</span>
           </div>
           <div className="flex justify-between text-sm text-gray-400 mt-2">
             <span>Collateralization</span> 
