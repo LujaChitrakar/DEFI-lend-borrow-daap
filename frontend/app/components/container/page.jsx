@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { DefiContext } from "../../context/DefiContext";
 
-const Container = ({ name, data = [], label }) => {
+const Container = ({ name, data = [], label,apy=null }) => {
   const { setOpenModalScreen } = useContext(DefiContext);
 
   return (
@@ -32,7 +32,7 @@ const Container = ({ name, data = [], label }) => {
                     {item.asset}
                   </td>
                   <td className="py-2">{item.available || item.balance}</td>
-                  <td className="py-2">{item.apy}</td>
+                  <td className="py-2">{apy}</td>
                   {label && (
                     <td className="py-2">
                       <button
