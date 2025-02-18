@@ -123,34 +123,34 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FOR LENDERS */
 
-    function depositStableCoinsAndMintToken(
-        address tokenAddress,
-        uint256 amountStableCoin
-    )
-        external
-        validStablecoin(tokenAddress)
-        moreThanZero(amountStableCoin)
-        nonReentrant
-    {
-        depositStableCoins(tokenAddress, amountStableCoin);
-        mintLendingToken(amountStableCoin);
-    }
+    // function depositStableCoinsAndMintToken(
+    //     address tokenAddress,
+    //     uint256 amountStableCoin
+    // )
+    //     external
+    //     validStablecoin(tokenAddress)
+    //     moreThanZero(amountStableCoin)
+    //     nonReentrant
+    // {
+    //     depositStableCoins(tokenAddress, amountStableCoin);
+    //     mintLendingToken(amountStableCoin);
+    // }
 
-    function withdrawStableCoinsAndBurnToken(
-        address tokenAddress,
-        uint256 amountStableCoin,
-        uint256 amountTokenToBurn
-    )
-        external
-        validStablecoin(tokenAddress)
-        moreThanZero(amountStableCoin)
-        nonReentrant
-    {
-        withdrawStableCoin(tokenAddress, amountStableCoin);
-        burn(amountTokenToBurn);
-    }
+    // function withdrawStableCoinsAndBurnToken(
+    //     address tokenAddress,
+    //     uint256 amountStableCoin,
+    //     uint256 amountTokenToBurn
+    // )
+    //     external
+    //     validStablecoin(tokenAddress)
+    //     moreThanZero(amountStableCoin)
+    //     nonReentrant
+    // {
+    //     withdrawStableCoin(tokenAddress, amountStableCoin);
+    //     burn(amountTokenToBurn);
+    // }
 
-    function depositStableCoins(
+    function depositStablecoin(
         address tokenAddress,
         uint256 amountStableCoin
     )
@@ -177,32 +177,32 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         emit StableCoinDeposited(msg.sender, tokenAddress, amountStableCoin);
     }
 
-    function mintLendingToken(
-        uint256 amountTokenToMint
-    )
-        public
-        moreThanZero(amountTokenToMint)
-        nonReentrant
-        sufficientDeposit(msg.sender, amountTokenToMint)
-    {
-        require(address(i_ltoken) != address(0), "i_ltoken not initialized");
-        uint256 depositedStablecoin = s_stableCoinDeposit[msg.sender][
-            USDT_ADDRESS
-        ] + s_stableCoinDeposit[msg.sender][USDC_ADDRESS];
+    // function mintLendingToken(
+    //     uint256 amountTokenToMint
+    // )
+    //     public
+    //     moreThanZero(amountTokenToMint)
+    //     nonReentrant
+    //     sufficientDeposit(msg.sender, amountTokenToMint)
+    // {
+    //     require(address(i_ltoken) != address(0), "i_ltoken not initialized");
+    //     uint256 depositedStablecoin = s_stableCoinDeposit[msg.sender][
+    //         USDT_ADDRESS
+    //     ] + s_stableCoinDeposit[msg.sender][USDC_ADDRESS];
 
-        if (depositedStablecoin < amountTokenToMint) {
-            revert DSCEngine__TokenToMintExceedsDepositedStablecoin();
-        }
+    //     if (depositedStablecoin < amountTokenToMint) {
+    //         revert DSCEngine__TokenToMintExceedsDepositedStablecoin();
+    //     }
 
-        s_tokenMinted[msg.sender] += amountTokenToMint;
-        emit tokenMinted(msg.sender, amountTokenToMint);
-        bool minted = i_ltoken.mint(msg.sender, amountTokenToMint);
-        if (!minted) {
-            revert DSCEngine__Mintfailed();
-        }
-    }
+    //     s_tokenMinted[msg.sender] += amountTokenToMint;
+    //     emit tokenMinted(msg.sender, amountTokenToMint);
+    //     bool minted = i_ltoken.mint(msg.sender, amountTokenToMint);
+    //     if (!minted) {
+    //         revert DSCEngine__Mintfailed();
+    //     }
+    // }
 
-    function withdrawStableCoin(
+    function withdrawStablecoin(
         address tokenAddress,
         uint256 amountStableCoin
     )
@@ -228,19 +228,18 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         }
 
         s_stableCoinDeposit[msg.sender][tokenAddress] -= amountStableCoin;
-        i_interest.resetInterest(msg.sender);
         s_totalStablecoin -= amountStableCoin;
+        i_interest.resetInterest(msg.sender);
         emit StableCoinWithdrawed(msg.sender, tokenAddress, amountStableCoin);
     }
 
-    function burn(
-        uint256 amountTokenToBurn
-    ) public moreThanZero(amountTokenToBurn) {
-        _burn(msg.sender, msg.sender, amountTokenToBurn);
-    }
+    // function burn(
+    //     uint256 amountTokenToBurn
+    // ) public moreThanZero(amountTokenToBurn) {
+    //     _burn(msg.sender, msg.sender, amountTokenToBurn);
+    // }
 
     /**FOR BORROWER */
-
 
     function depositCollateralAndBorrowStablecoin(
         address tokenAddress
@@ -494,28 +493,28 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FUNCTIONS(PRIVATE and INTERNAL) */
 
-    /**
-     @param onBehalfOf : The address of the user whose token is to be burned.
-     @param tokenFrom : The address of the user whose stablecoin is to be set into mining Pool.
-     @param amountTokenToBurn : The amount of token you want to burn to improve the users health factor
-    */
-    function _burn(
-        address onBehalfOf,
-        address tokenFrom,
-        uint256 amountTokenToBurn
-    ) private {
-        s_tokenMinted[onBehalfOf] -= amountTokenToBurn;
+    // /**
+    //  @param onBehalfOf : The address of the user whose token is to be burned.
+    //  @param tokenFrom : The address of the user whose stablecoin is to be set into mining Pool.
+    //  @param amountTokenToBurn : The amount of token you want to burn to improve the users health factor
+    // */
+    // function _burn(
+    //     address onBehalfOf,
+    //     address tokenFrom,
+    //     uint256 amountTokenToBurn
+    // ) private {
+    //     s_tokenMinted[onBehalfOf] -= amountTokenToBurn;
 
-        bool burned = i_ltoken.transferFrom(
-            tokenFrom,
-            address(this),
-            amountTokenToBurn
-        );
-        if (!burned) {
-            revert DSCEngine__TokenBurnFailed();
-        }
-        i_ltoken.burn(amountTokenToBurn);
-    }
+    //     bool burned = i_ltoken.transferFrom(
+    //         tokenFrom,
+    //         address(this),
+    //         amountTokenToBurn
+    //     );
+    //     if (!burned) {
+    //         revert DSCEngine__TokenBurnFailed();
+    //     }
+    //     i_ltoken.burn(amountTokenToBurn);
+    // }
 
     function _calculateLiquidationAmount(
         address _borrower,

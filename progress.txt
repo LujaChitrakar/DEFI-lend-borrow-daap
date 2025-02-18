@@ -3,3 +3,8 @@ liquidate ko fixed
 deposit collateral
 repay loans
 withdraw collateral baki
+
+
+USDCTokenAddress:0x38e92e887AA4C802aD70491Df59286EaaBd14a73
+
+USDTTokenAddress:0x86116a6E907f56e1dD698a6f0CA9CD7bcb91306f
