@@ -6,7 +6,15 @@ import { X } from "lucide-react";
 import { ethers } from "ethers";
 
 const LendModal = () => {
-  const { openModalScreen, setOpenModalScreen, contract, userAddress, updateUserData } = useContext(DefiContext);
+  const USDC_ADDRESS = "0x76eFc6B7aDac502DC210f255ea8420672C1355d3";
+
+  const {
+    openModalScreen,
+    setOpenModalScreen,
+    contract,
+    userAddress,
+    updateUserData,
+  } = useContext(DefiContext);
   const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState("");
   const [walletBalance, setWalletBalance] = useState("0");
@@ -16,7 +24,7 @@ const LendModal = () => {
     totalSupply: "0",
     userLendBalance: "0",
     earnedInterest: "0",
-    apy: "5"
+    apy: "5",
   });
 
   useEffect(() => {
@@ -32,13 +40,14 @@ const LendModal = () => {
       const [totalSupply, userLendBalance, earnedInterest] = await Promise.all([
         contract.getTotalStablecoinInPool(),
         contract.getYourLendedStablecoin(),
-        contract.getYourEarnedLendingInterest()
+        contract.getYourEarnedLendingInterest(),
       ]);
+
       setLendingStats({
         totalSupply: ethers.formatEther(totalSupply),
         userLendBalance: ethers.formatEther(userLendBalance),
         earnedInterest: ethers.formatEther(earnedInterest),
-        apy: "5"
+        apy: "5",
       });
     } catch (error) {
       console.error("Error fetching lending stats:", error);
@@ -46,11 +55,18 @@ const LendModal = () => {
   };
 
   const fetchWalletBalance = async () => {
-    if (window.ethereum && userAddress) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const balance = await provider.getBalance(userAddress);
-      setWalletBalance(ethers.formatEther(balance));
-    }
+    if (!window.ethereum || !userAddress) return;
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    const usdcContract = new ethers.Contract(
+      USDC_ADDRESS,
+      ["function balanceOf(address owner) view returns (uint256)"],
+      signer
+    );
+
+    const balance = await usdcContract.balanceOf(userAddress);
+    setWalletBalance(ethers.formatUnits(balance, 6)); // USDC has 6 decimals
   };
 
   const handleLend = async () => {
@@ -59,39 +75,56 @@ const LendModal = () => {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      
-      // Convert amount to USDC decimals (6)
-      const amountInUSDC = ethers.parseUnits(amount, 6);
-      
-      // Execute deposit
-      const tx = await contract.depositStablecoin(amountInUSDC);
-      await tx.wait();
-      
-      // Update UI after successful transaction
+
+      const usdcContract = new ethers.Contract(
+        USDC_ADDRESS,
+        [
+          "function approve(address spender, uint256 amount) public returns (bool)",
+        ],
+        signer
+      );
+
+      // Convert amount to 6 decimal format for USDC
+      const amountInWei = ethers.parseUnits(amount, 6);
+
+      // Step 1: Approve the contract to spend USDC
+      const approveTx = await usdcContract.approve(
+        contract.target,
+        amountInWei
+      );
+      await approveTx.wait(); // Wait for the approval to be confirmed
+
+      // Step 2: Call depositStablecoin
+      const tx = await contract.depositStablecoin(amountInWei);
+      await tx.wait(); // Wait for the deposit transaction to be confirmed
+
+      // Refresh user data and lending stats
       await Promise.all([
         updateUserData(contract, userAddress),
         fetchLendingStats(),
-        fetchWalletBalance()
+        fetchWalletBalance(),
       ]);
-      
+
       setAmount("");
       setUsdValue("0.00");
       setOpenModalScreen(null);
     } catch (error) {
-      console.log("Transaction details:", {
+      console.log("Lending failed:", {
         amount,
-        error: error.message
+        error: error.message,
+        chainId: await window.ethereum.request({ method: "eth_chainId" }),
       });
-      alert("Please ensure you have sufficient balance and are connected to the correct network.");
+      alert("Lending failed. Please check your wallet and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleMaxClick = () => {
-    const maxAmount = parseFloat(walletBalance) > 0.01
-      ? (parseFloat(walletBalance) - 0.01).toFixed(18)
-      : "0";
+    const maxAmount =
+      parseFloat(walletBalance) > 0.01
+        ? (parseFloat(walletBalance) - 0.01).toFixed(18)
+        : "0";
     setAmount(maxAmount);
     setUsdValue((parseFloat(maxAmount) * 3000).toFixed(2));
   };
@@ -111,26 +144,37 @@ const LendModal = () => {
       <div className="bg-gray-900 p-6 rounded-2xl shadow-2xl w-[500px] border border-gray-700">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-xl font-semibold text-white">Supply USDC</h2>
-          <button onClick={() => setOpenModalScreen(null)} className="text-gray-400 hover:text-white transition">
+          <button
+            onClick={() => setOpenModalScreen(null)}
+            className="text-gray-400 hover:text-white transition"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
+
         <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-gray-400 text-sm">Total Supply</p>
-              <p className="text-white">{parseFloat(lendingStats.totalSupply).toFixed(4)} USDC</p>
+              <p className="text-white">
+                {parseFloat(lendingStats.totalSupply).toFixed(4)} USDC
+              </p>
             </div>
             <div>
               <p className="text-gray-400 text-sm">Your Lending</p>
-              <p className="text-white">{parseFloat(lendingStats.userLendBalance).toFixed(4)} USDC</p>
+              <p className="text-white">
+                {parseFloat(lendingStats.userLendBalance).toFixed(4)} USDC
+              </p>
             </div>
             <div>
               <p className="text-gray-400 text-sm">Earned Interest</p>
-              <p className="text-green-400">{parseFloat(lendingStats.earnedInterest).toFixed(4)} USDC</p>
+              <p className="text-green-400">
+                {parseFloat(lendingStats.earnedInterest).toFixed(4)} USDC
+              </p>
             </div>
           </div>
         </div>
+
         <div className="space-y-2">
           <label className="text-gray-400 text-sm">Amount</label>
           <div className="flex items-center bg-gray-800 p-3 rounded-lg border border-gray-700">
@@ -148,9 +192,12 @@ const LendModal = () => {
           <div className="flex justify-between text-sm text-gray-500">
             <div className="flex flex-col">
               <span>${usdValue}</span>
-              <span>Balance: {parseFloat(walletBalance).toFixed(4)} ETH</span>
+              <span>Balance: {parseFloat(walletBalance).toFixed(4)} USDC</span>
             </div>
-            <button onClick={handleMaxClick} className="text-blue-400 hover:text-blue-500 transition">
+            <button
+              onClick={handleMaxClick}
+              className="text-blue-400 hover:text-blue-500 transition"
+            >
               MAX
             </button>
           </div>
