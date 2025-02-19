@@ -49,9 +49,9 @@ contract PriceOracle is Ownable {
     function getLatestPrice(
         address tokenAddress
     ) public view returns (uint256) {
-        if (s_priceFeeds[tokenAddress] == address(0)) {
-            revert PriceOracle__InvaidToken();
-        }
+        // if (s_priceFeeds[tokenAddress] == address(0)) {
+        //     revert PriceOracle__InvaidToken();
+        // }
 
         AggregatorV3Interface priceFeed = AggregatorV3Interface(
             s_priceFeeds[tokenAddress]
