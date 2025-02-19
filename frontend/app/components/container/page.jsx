@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { DefiContext } from "../../context/DefiContext";
 
-const Container = ({ name, data = [], label }) => {
+const Container = ({ name, data = [], label1,label2,apy=null }) => {
   const { setOpenModalScreen } = useContext(DefiContext);
 
   return (
@@ -19,8 +19,8 @@ const Container = ({ name, data = [], label }) => {
             <tr>
               <th className="py-2 text-left">Asset</th>
               <th className="py-2 text-left">Available</th>
-              <th className="py-2 text-left">APY</th>
-              {label && <th className="py-2 text-left">Action</th>}
+             {apy && <th className="py-2 text-left">APY</th>}
+              {(label1 || label2) && <th className="py-2 text-left">Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -32,17 +32,25 @@ const Container = ({ name, data = [], label }) => {
                     {item.asset}
                   </td>
                   <td className="py-2">{item.available || item.balance}</td>
-                  <td className="py-2">{item.apy}</td>
-                  {label && (
-                    <td className="py-2">
+                  <td className="py-2">{apy}</td>
+                  <td className="py-2">
+                  {label1 && (
                       <button
-                        onClick={() => setOpenModalScreen(label)}
+                        onClick={() => setOpenModalScreen(label1)}
+                        className="px-4 py-2 mr-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
+                      >
+                        {label1}
+                      </button>
+                  )}
+                                   {label2 && (
+                      <button
+                        onClick={() => setOpenModalScreen(label2)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
                       >
-                        {label}
+                        {label2}
                       </button>
-                    </td>
                   )}
+                  </td>
                 </tr>
               )
             )}
