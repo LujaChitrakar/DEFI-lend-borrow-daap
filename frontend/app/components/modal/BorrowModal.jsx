@@ -1,30 +1,33 @@
 "use client";
 
 import React, { useContext, useEffect, useState } from "react";
+import { ethers } from "ethers";
 import { createPortal } from "react-dom";
 import { DefiContext } from "../../context/DefiContext";
 import { X } from "lucide-react";
 
 const BorrowModal = () => {
-  const { openModalScreen, setOpenModalScreen,currentState } = useContext(DefiContext);
+  const { openModalScreen, setOpenModalScreen, currentState } =
+    useContext(DefiContext);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleBorrow =async()=>{
-// const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin('0x38e92e887AA4C802aD70491Df59286EaaBd14a73')
-console.log(res)
-
-  }
+  const handleBorrow = async () => {
+    const res =
+      await currentState.contract?.depositCollateralAndBorrowStablecoin({
+        value: ethers.parseEther("0.00015"),
+      });
+    // const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin({value:1000000000000000000})          console.log(res)
+  };
 
   if (!mounted || openModalScreen !== "Borrow") return null;
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-gray-900 p-6 rounded-2xl shadow-2xl w-[400px] border border-gray-700">
-        
         {/* Header */}
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-xl font-semibold text-white">Borrow Asset</h2>
@@ -49,18 +52,20 @@ console.log(res)
           </div>
           <div className="flex justify-between text-sm text-gray-500">
             <span>Available to Borrow: 1500 USDC</span>
-            <button className="text-blue-400 hover:text-blue-500 transition">MAX</button>
+            <button className="text-blue-400 hover:text-blue-500 transition">
+              MAX
+            </button>
           </div>
         </div>
 
         {/* Transaction Overview */}
         <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 my-5">
           <div className="flex justify-between text-sm text-gray-400">
-            <span>Borrow APY</span> 
+            <span>Borrow APY</span>
             <span className="text-white">7%</span>
           </div>
           <div className="flex justify-between text-sm text-gray-400 mt-2">
-            <span>Health Factor</span> 
+            <span>Health Factor</span>
             <span className="text-yellow-400 font-medium">Stable</span>
           </div>
         </div>
@@ -69,8 +74,8 @@ console.log(res)
         <button
           // className="w-full bg-gray-700 text-gray-500 px-4 py-3 rounded-lg cursor-not-allowed transition"
           className="w-full bg-gray-700 text-gray-500 px-4 py-3 rounded-lg transition"
-        onClick={handleBorrow}
-       >
+          onClick={handleBorrow}
+        >
           Borrow
         </button>
       </div>

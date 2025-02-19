@@ -1,7 +1,7 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.18;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 contract PriceOracle is Ownable {
     /**ERRORS */
@@ -58,7 +58,7 @@ contract PriceOracle is Ownable {
         );
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Invalid price from oracle");
-        return uint256(price) * 1e10;
+        return uint256(price) * 1e12;
     }
 
     function getEthLatestPrice() public view returns (uint256) {
@@ -83,12 +83,12 @@ contract PriceOracle is Ownable {
         uint256 amount
     ) public view returns (uint256) {
         uint256 price = getLatestPrice(tokenAddress);
-        return (amount * price) / 1e8;
+        return (amount * price) / 1e18;
     }
 
     function getEthValueInUsd(uint256 amount) public view returns (uint256) {
         uint256 price = getEthLatestPrice();
-        return (amount * price) / 1e8;
+        return (amount * price) / 1e18;
     }
 
     /**

@@ -35,7 +35,7 @@ contract InterestRateModel is Ownable {
         bool isLending
     ) internal view returns (uint256) {
         uint256 lastTimestamp = s_lastInterestTimestamp[user];
-        require(lastTimestamp > 0, "No prevvious timestamp");
+        // require(lastTimestamp > 0, "No prevvious timestamp");
 
         uint256 timeElapsed = block.timestamp - lastTimestamp;
         uint256 rate = isLending

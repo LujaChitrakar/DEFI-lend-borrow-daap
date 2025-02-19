@@ -7,6 +7,7 @@ contract HelperConfig {
     struct NetworkConfig {
         address usdcUsdPriceFeed;
         address usdc;
+        address ethUsdPriceFeed;
     }
 
     uint8 public constant DECIMALS = 8;
@@ -30,7 +31,8 @@ contract HelperConfig {
         return
             NetworkConfig({
                 usdcUsdPriceFeed: 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E,
-                usdc: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+                usdc: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+                ethUsdPriceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306
             });
     }
 
@@ -56,7 +58,8 @@ contract HelperConfig {
         return
             NetworkConfig({
                 usdcUsdPriceFeed: address(usdcUsdPriceFeed),
-                usdc: address(usdcMock)
+                usdc: address(usdcMock),
+                ethUsdPriceFeed: address(usdcUsdPriceFeed)
             });
     }
 }

@@ -25,10 +25,13 @@ async function main() {
   );
   console.log("Price Feed set in PriceOracle");
 
+  await priceOracle.setEthPriceFeed(networkConfig.ethUsdPriceFeed);
+  console.log("ETH Price Feed set in PriceOracle");
+
   const [deployer] = await ethers.getSigners();
   console.log("Deployer address:", deployer.address);
 
-  const mintAmount = ethers.parseEther("1000000");
+  const mintAmount = ethers.parseEther("1000000", 6);
   const mintTx = await usdcToken.mint(
     "0xe1fa35699020c8c6539edd502755bc06e25791cc",
     mintAmount
