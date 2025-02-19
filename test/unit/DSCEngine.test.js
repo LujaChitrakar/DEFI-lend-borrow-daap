@@ -1,580 +1,256 @@
 // const { expect } = require("chai");
 // const { ethers } = require("hardhat");
-// const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
-// describe("DSCEngine Contract Tests", function () {
-//   async function deployContractsFixture() {
-//     // Get signers
-//     const [owner, lender, borrower, liquidator] = await ethers.getSigners();
+// describe("DSCEngine", function () {
+//   let dscEngine;
+//   let priceOracle;
+//   let interestRateModel;
+//   let usdc;
+//   let owner;
+//   let user1;
+//   let user2;
+//   let liquidator;
 
-//     // Deploy HelperConfig
-//     const HelperConfig = await ethers.getContractFactory("HelperConfig");
-//     const helperConfig = await HelperConfig.deploy();
+//   const USDC_ADDRESS = "0x76eFc6B7aDac502DC210f255ea8420672C1355d3";
+//   const ETH_AMOUNT = ethers.utils.parseEther("1.0");
+//   const USDC_AMOUNT = ethers.utils.parseUnits("1000", 6); // Assuming 6 decimals for USDC
 
-//     // Get network config
-//     const networkConfig = await helperConfig.activeNetworkConfig();
+//   beforeEach(async function () {
+//     [owner, user1, user2, liquidator] = await ethers.getSigners();
 
-//     // Deploy MockV3Aggregator for ETH price feed
-//     const MockV3Aggregator = await ethers.getContractFactory(
-//       "MockV3Aggregator"
+//     // Deploy mock contracts
+//     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+//     priceOracle = await MockPriceOracle.deploy();
+//     await priceOracle.deployed();
+
+//     const MockInterestRateModel = await ethers.getContractFactory(
+//       "MockInterestRateModel"
 //     );
-//     const ethUsdPriceFeed = await MockV3Aggregator.deploy(
-//       8,
-//       ethers.utils.parseUnits("2000", 8)
-//     ); // $2000 per ETH
+//     interestRateModel = await MockInterestRateModel.deploy();
+//     await interestRateModel.deployed();
 
-//     // Deploy InterestRateModel
-//     const InterestRateModel = await ethers.getContractFactory(
-//       "InterestRateModel"
-//     );
-//     const interestRateModel = await InterestRateModel.deploy();
-
-//     // Deploy PriceOracle
-//     const PriceOracle = await ethers.getContractFactory("PriceOracle");
-//     const priceOracle = await PriceOracle.deploy();
-
-//     // Set price feeds in PriceOracle
-//     await priceOracle.setPriceFeed(
-//       networkConfig.usdc,
-//       networkConfig.usdcUsdPriceFeed
-//     );
-//     await priceOracle.setEthPriceFeed(ethUsdPriceFeed.address);
-
-//     // Deploy DSCEngine
+//     // Deploy main contract
 //     const DSCEngine = await ethers.getContractFactory("DSCEngine");
-//     const dscEngine = await DSCEngine.deploy(
+//     dscEngine = await DSCEngine.deploy(
 //       priceOracle.address,
 //       interestRateModel.address
 //     );
+//     await dscEngine.deployed();
 
-//     // Get USDC mock instance
-//     const usdc = await ethers.getContractAt("ERC20Mock", networkConfig.usdc);
+//     // Setup USDC mock
+//     const MockERC20 = await ethers.getContractFactory("MockERC20");
+//     usdc = await MockERC20.deploy("USD Coin", "USDC", 6);
+//     await usdc.deployed();
+
+//     // Configure price oracle
+//     await priceOracle.setEthPrice(ethers.utils.parseUnits("2000", 18)); // $2000 per ETH
+//     await priceOracle.setTokenPrice(
+//       USDC_ADDRESS,
+//       ethers.utils.parseUnits("1", 18)
+//     ); // $1 per USDC
 
 //     // Mint USDC to users
-//     const usdcAmount = ethers.utils.parseEther("10000"); // 10,000 USDC
-//     await usdc.mint(lender.address, usdcAmount);
-//     await usdc.mint(borrower.address, usdcAmount);
-//     await usdc.mint(liquidator.address, usdcAmount);
+//     await usdc.mint(user1.address, USDC_AMOUNT);
+//     await usdc.mint(user2.address, USDC_AMOUNT);
+//     await usdc.mint(liquidator.address, USDC_AMOUNT.mul(10));
 
-//     // Approve DSCEngine to spend USDC
-//     await usdc
-//       .connect(lender)
-//       .approve(dscEngine.address, ethers.constants.MaxUint256);
-//     await usdc
-//       .connect(borrower)
-//       .approve(dscEngine.address, ethers.constants.MaxUint256);
+//     // Approve USDC spending
+//     await usdc.connect(user1).approve(dscEngine.address, USDC_AMOUNT);
+//     await usdc.connect(user2).approve(dscEngine.address, USDC_AMOUNT);
 //     await usdc
 //       .connect(liquidator)
-//       .approve(dscEngine.address, ethers.constants.MaxUint256);
-
-//     return {
-//       dscEngine,
-//       priceOracle,
-//       interestRateModel,
-//       usdc,
-//       ethUsdPriceFeed,
-//       owner,
-//       lender,
-//       borrower,
-//       liquidator,
-//     };
-//   }
-
-//   describe("Deployment", function () {
-//     it("Should deploy successfully", async function () {
-//       const { dscEngine, priceOracle, interestRateModel } = await loadFixture(
-//         deployContractsFixture
-//       );
-//       expect(dscEngine.address).to.be.properAddress;
-//     });
-
-//     it("Should set the correct USDC address", async function () {
-//       const { dscEngine } = await loadFixture(deployContractsFixture);
-//       expect(await dscEngine.USDC_ADDRESS()).to.not.equal(
-//         ethers.constants.AddressZero
-//       );
-//     });
+//       .approve(dscEngine.address, USDC_AMOUNT.mul(10));
 //   });
 
-//   describe("Lender Functions", function () {
+//   describe("Deposit Functions", function () {
 //     it("Should allow depositing stablecoin", async function () {
-//       const { dscEngine, usdc, lender } = await loadFixture(
-//         deployContractsFixture
-//       );
-//       const depositAmount = ethers.utils.parseEther("1000");
-
-//       await expect(dscEngine.connect(lender).depositStablecoin(depositAmount))
-//         .to.emit(dscEngine, "StableCoinDeposited")
-//         .withArgs(lender.address, depositAmount);
-
-//       const lenderBalance = await dscEngine.getStableCoinBalance(
-//         lender.address
-//       );
-//       expect(lenderBalance).to.equal(depositAmount);
+//       await dscEngine.connect(user1).depositStablecoin(USDC_AMOUNT);
+//       const balance = await dscEngine.getStableCoinBalance(user1.address);
+//       expect(balance).to.equal(USDC_AMOUNT);
 //     });
 
-//     it("Should revert when depositing zero amount", async function () {
-//       const { dscEngine, lender } = await loadFixture(deployContractsFixture);
-
-//       await expect(
-//         dscEngine.connect(lender).depositStablecoin(0)
-//       ).to.be.revertedWithCustomError(
-//         dscEngine,
-//         "DSCEngine__NeedsMoreThanZero"
+//     it("Should allow depositing ETH collateral", async function () {
+//       await dscEngine.connect(user1).depositCollateral({ value: ETH_AMOUNT });
+//       const collateral = await dscEngine.getCollateralDepositBalance(
+//         user1.address
 //       );
+//       expect(collateral).to.equal(ETH_AMOUNT);
 //     });
 
-//     it("Should allow withdrawing stablecoin", async function () {
-//       const { dscEngine, usdc, lender } = await loadFixture(
-//         deployContractsFixture
+//     it("Should allow combined deposit and borrow", async function () {
+//       // First deposit some USDC to the protocol
+//       await dscEngine.connect(user2).depositStablecoin(USDC_AMOUNT);
+
+//       // User1 deposits ETH and borrows in one transaction
+//       await dscEngine
+//         .connect(user1)
+//         .depositCollateralAndBorrowStablecoin({ value: ETH_AMOUNT });
+
+//       const collateral = await dscEngine.getCollateralDepositBalance(
+//         user1.address
 //       );
-//       const depositAmount = ethers.utils.parseEther("1000");
-//       const withdrawAmount = ethers.utils.parseEther("500");
+//       expect(collateral).to.equal(ETH_AMOUNT);
 
-//       // Deposit first
-//       await dscEngine.connect(lender).depositStablecoin(depositAmount);
-
-//       // Then withdraw
-//       await expect(dscEngine.connect(lender).withdrawStablecoin(withdrawAmount))
-//         .to.emit(dscEngine, "StableCoinWithdrawed")
-//         .withArgs(lender.address, withdrawAmount);
-
-//       const lenderBalance = await dscEngine.getStableCoinBalance(
-//         lender.address
-//       );
-//       expect(lenderBalance).to.equal(depositAmount.sub(withdrawAmount));
-//     });
-
-//     it("Should revert when withdrawing more than deposited", async function () {
-//       const { dscEngine, lender } = await loadFixture(deployContractsFixture);
-//       const depositAmount = ethers.utils.parseEther("100");
-//       const withdrawAmount = ethers.utils.parseEther("101");
-
-//       // Deposit first
-//       await dscEngine.connect(lender).depositStablecoin(depositAmount);
-
-//       // Try to withdraw more
-//       await expect(
-//         dscEngine.connect(lender).withdrawStablecoin(withdrawAmount)
-//       ).to.be.revertedWith("Insufficient balance");
+//       const borrowed = await dscEngine.getDebtBalance(user1.address);
+//       expect(borrowed).to.be.gt(0);
 //     });
 //   });
 
-//   describe("Borrower Functions", function () {
-//     it("Should allow depositing collateral", async function () {
-//       const { dscEngine, borrower } = await loadFixture(deployContractsFixture);
-//       const collateralAmount = ethers.utils.parseEther("1");
-
-//       await expect(
-//         dscEngine
-//           .connect(borrower)
-//           .depositCollateral({ value: collateralAmount })
-//       )
-//         .to.emit(dscEngine, "CollateralDeposited")
-//         .withArgs(borrower.address, collateralAmount);
-
-//       const collateralBalance = await dscEngine.getCollateralDepositBalance(
-//         borrower.address
-//       );
-//       expect(collateralBalance).to.equal(collateralAmount);
+//   describe("Borrowing and Repayment", function () {
+//     beforeEach(async function () {
+//       // Setup: User2 deposits liquidity
+//       await dscEngine.connect(user2).depositStablecoin(USDC_AMOUNT);
+//       // User1 deposits collateral
+//       await dscEngine.connect(user1).depositCollateral({ value: ETH_AMOUNT });
 //     });
 
-//     it("Should allow depositing collateral and borrowing in one transaction", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
+//     it("Should allow borrowing stablecoin against collateral", async function () {
+//       const borrowAmount = USDC_AMOUNT.div(4); // Borrow 25% of deposited USDC
+//       await dscEngine.connect(user1).borrowStablecoin(borrowAmount);
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral and borrows in one tx
-//       const collateralAmount = ethers.utils.parseEther("2");
-
-//       await expect(
-//         dscEngine
-//           .connect(borrower)
-//           .depositCollateralAndBorrowStablecoin({ value: collateralAmount })
-//       ).to.emit(dscEngine, "CollateralDepositedAndBorrowed");
-
-//       const collateralBalance = await dscEngine.getCollateralDepositBalance(
-//         borrower.address
-//       );
-//       expect(collateralBalance).to.equal(collateralAmount);
-
-//       const debtBalance = await dscEngine.getDebtBalance(borrower.address);
-//       expect(debtBalance).to.be.gt(0); // Should have borrowed some amount
-//     });
-
-//     it("Should allow borrowing stablecoin against deposited collateral", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
-
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Borrower borrows stablecoin
-//       const borrowAmount = ethers.utils.parseEther("1000");
-//       await expect(dscEngine.connect(borrower).borrowStablecoin(borrowAmount))
-//         .to.emit(dscEngine, "StablecoinBorrowed")
-//         .withArgs(borrower.address, borrowAmount);
-
-//       const debtBalance = await dscEngine.getDebtBalance(borrower.address);
+//       const debtBalance = await dscEngine.getDebtBalance(user1.address);
 //       expect(debtBalance).to.equal(borrowAmount);
 //     });
 
-//     it("Should revert when trying to borrow more than allowed by collateral", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
-
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Try to borrow too much
-//       const borrowAmount = ethers.utils.parseEther("2000"); // More than collateral supports
-//       await expect(
-//         dscEngine.connect(borrower).borrowStablecoin(borrowAmount)
-//       ).to.be.revertedWith("Not enough collateral");
+//     it("Should prevent borrowing beyond collateral ratio", async function () {
+//       const tooMuch = USDC_AMOUNT;
+//       await expect(dscEngine.connect(user1).borrowStablecoin(tooMuch)).to.be
+//         .reverted;
 //     });
 
-//     it("Should allow repaying loan", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
+//     it("Should allow loan repayment", async function () {
+//       // Borrow first
+//       const borrowAmount = USDC_AMOUNT.div(4);
+//       await dscEngine.connect(user1).borrowStablecoin(borrowAmount);
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Borrower borrows stablecoin
-//       const borrowAmount = ethers.utils.parseEther("1000");
-//       await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
+//       // Approve USDC for repayment
+//       await usdc.connect(user1).approve(dscEngine.address, borrowAmount);
 
 //       // Repay loan
-//       await expect(dscEngine.connect(borrower).repayLoan(borrowAmount))
-//         .to.emit(dscEngine, "LoanRepaid")
-//         .withArgs(borrower.address, borrowAmount);
+//       await dscEngine.connect(user1).repayLoan(borrowAmount);
 
-//       const debtBalance = await dscEngine.getDebtBalance(borrower.address);
+//       // Check debt balance
+//       const debtBalance = await dscEngine.getDebtBalance(user1.address);
 //       expect(debtBalance).to.equal(0);
 //     });
+//   });
 
-//     it("Should allow withdrawing collateral", async function () {
-//       const { dscEngine, borrower } = await loadFixture(deployContractsFixture);
-
-//       // Deposit collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Withdraw half
-//       const withdrawAmount = ethers.utils.parseEther("0.5");
-//       await expect(
-//         dscEngine.connect(borrower).withdrawCollateral(withdrawAmount)
-//       )
-//         .to.emit(dscEngine, "CollateralWithdrawn")
-//         .withArgs(borrower.address, withdrawAmount);
-
-//       const collateralBalance = await dscEngine.getCollateralDepositBalance(
-//         borrower.address
-//       );
-//       expect(collateralBalance).to.equal(collateralAmount.sub(withdrawAmount));
+//   describe("Collateral Management", function () {
+//     beforeEach(async function () {
+//       // Setup: User1 deposits collateral and borrows
+//       await dscEngine.connect(user2).depositStablecoin(USDC_AMOUNT);
+//       await dscEngine.connect(user1).depositCollateral({ value: ETH_AMOUNT });
+//       await dscEngine.connect(user1).borrowStablecoin(USDC_AMOUNT.div(5));
 //     });
 
-//     it("Should revert when trying to withdraw more collateral than deposited", async function () {
-//       const { dscEngine, borrower } = await loadFixture(deployContractsFixture);
+//     it("Should allow withdrawing excess collateral", async function () {
+//       const withdrawAmount = ETH_AMOUNT.div(10);
+//       await dscEngine.connect(user1).withdrawCollateral(withdrawAmount);
 
-//       // Deposit collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
+//       const collateral = await dscEngine.getCollateralDepositBalance(
+//         user1.address
+//       );
+//       expect(collateral).to.equal(ETH_AMOUNT.sub(withdrawAmount));
+//     });
 
-//       // Try to withdraw more
-//       const withdrawAmount = ethers.utils.parseEther("1.1");
-//       await expect(
-//         dscEngine.connect(borrower).withdrawCollateral(withdrawAmount)
-//       ).to.be.revertedWith(" Amount exceeds total collateral deposited");
+//     it("Should prevent withdrawing too much collateral", async function () {
+//       const tooMuch = ETH_AMOUNT.div(2);
+//       await expect(dscEngine.connect(user1).withdrawCollateral(tooMuch)).to.be
+//         .reverted;
 //     });
 //   });
 
 //   describe("Liquidation", function () {
-//     it("Should allow liquidation of undercollateralized position", async function () {
-//       const {
-//         dscEngine,
-//         priceOracle,
-//         ethUsdPriceFeed,
-//         lender,
-//         borrower,
-//         liquidator,
-//       } = await loadFixture(deployContractsFixture);
+//     beforeEach(async function () {
+//       // Setup: User deposits and borrows at threshold
+//       await dscEngine.connect(user2).depositStablecoin(USDC_AMOUNT);
+//       await dscEngine.connect(user1).depositCollateral({ value: ETH_AMOUNT });
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Borrower borrows max amount
-//       const maxBorrowableAmount = await dscEngine
-//         .connect(borrower)
-//         .getMaxBorrowableAmount();
-//       await dscEngine.connect(borrower).borrowStablecoin(maxBorrowableAmount);
-
-//       // Drop ETH price to make position undercollateralized
-//       await ethUsdPriceFeed.updateAnswer(ethers.utils.parseUnits("1000", 8)); // $1000 per ETH
-
-//       // Check if borrower can be liquidated
-//       const canBeLiquidated = await dscEngine.canUserBeLiquidated(
-//         borrower.address
-//       );
-//       expect(canBeLiquidated).to.be.true;
-
-//       // Liquidator liquidates position
-//       const liquidationAmount = maxBorrowableAmount.div(2);
-//       await expect(
-//         dscEngine
-//           .connect(liquidator)
-//           .liquidate(borrower.address, liquidationAmount)
-//       ).to.emit(dscEngine, "Liquidation");
-
-//       // Check if debt is reduced
-//       const debtAfterLiquidation = await dscEngine.getDebtBalance(
-//         borrower.address
-//       );
-//       expect(debtAfterLiquidation).to.be.lt(maxBorrowableAmount);
+//       // Borrow near max
+//       const borrowAmount = USDC_AMOUNT.div(3);
+//       await dscEngine.connect(user1).borrowStablecoin(borrowAmount);
 //     });
 
-//     it("Should revert liquidation if position is healthy", async function () {
-//       const { dscEngine, lender, borrower, liquidator } = await loadFixture(
-//         deployContractsFixture
-//       );
+//     it("Should allow liquidation when collateral value drops", async function () {
+//       // Drop ETH price, making user1 undercollateralized
+//       await priceOracle.setEthPrice(ethers.utils.parseUnits("1000", 18));
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
+//       // Check if user can be liquidated
+//       const canLiquidate = await dscEngine.canUserBeLiquidated(user1.address);
+//       expect(canLiquidate).to.be.true;
 
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
+//       // Prepare liquidator
+//       const debtBalance = await dscEngine.getDebtBalance(user1.address);
 
-//       // Borrower borrows conservatively
-//       const maxBorrowableAmount = await dscEngine
-//         .connect(borrower)
-//         .getMaxBorrowableAmount();
-//       const conservativeBorrowAmount = maxBorrowableAmount.div(2);
-//       await dscEngine
-//         .connect(borrower)
-//         .borrowStablecoin(conservativeBorrowAmount);
+//       // Liquidate
+//       await dscEngine.connect(liquidator).liquidate(user1.address, debtBalance);
 
-//       // Position should be healthy
-//       const canBeLiquidated = await dscEngine.canUserBeLiquidated(
-//         borrower.address
-//       );
-//       expect(canBeLiquidated).to.be.false;
+//       // Check debt is reduced
+//       const newDebtBalance = await dscEngine.getDebtBalance(user1.address);
+//       expect(newDebtBalance).to.equal(0);
+//     });
 
-//       // Try to liquidate
+//     it("Should prevent liquidation of healthy positions", async function () {
+//       // Increase ETH price, making position healthier
+//       await priceOracle.setEthPrice(ethers.utils.parseUnits("3000", 18));
+
+//       const debtBalance = await dscEngine.getDebtBalance(user1.address);
 //       await expect(
-//         dscEngine
-//           .connect(liquidator)
-//           .liquidate(borrower.address, conservativeBorrowAmount)
-//       ).to.be.revertedWith("User is not undercollaterized");
+//         dscEngine.connect(liquidator).liquidate(user1.address, debtBalance)
+//       ).to.be.reverted;
 //     });
 //   });
 
-//   describe("View Functions", function () {
-//     it("Should correctly calculate health factor", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
+//   describe("Interest Accrual", function () {
+//     it("Should accrue interest for lenders", async function () {
+//       // Setup mocks for interest accrual
+//       await interestRateModel.setAccruedInterest(
+//         user1.address,
+//         ethers.utils.parseUnits("10", 6)
 //       );
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
+//       // Deposit stablecoin
+//       await dscEngine.connect(user1).depositStablecoin(USDC_AMOUNT);
 
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
+//       // Fast forward time (would be implemented in actual tests)
+//       // ...
 
-//       // Before borrowing, health factor should be max
-//       const initialHealthFactor = await dscEngine.getHealthFactor(
-//         borrower.address
-//       );
-//       expect(initialHealthFactor).to.equal(ethers.constants.MaxUint256);
-
-//       // Borrow some amount
-//       const borrowAmount = ethers.utils.parseEther("1000");
-//       await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
-
-//       // After borrowing, health factor should be finite
-//       const healthFactorAfterBorrow = await dscEngine.getHealthFactor(
-//         borrower.address
-//       );
-//       expect(healthFactorAfterBorrow).to.be.lt(ethers.constants.MaxUint256);
-//       expect(healthFactorAfterBorrow).to.be.gt(ethers.utils.parseEther("1")); // Health factor > 1
+//       // Check earned interest
+//       const interest = await dscEngine.getYourEarnedLendingInterest();
+//       expect(interest).to.equal(ethers.utils.parseUnits("10", 6));
 //     });
 
-//     it("Should correctly calculate max borrowable amount", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
-
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // No collateral, max borrowable should be 0
-//       const initialMaxBorrowable = await dscEngine
-//         .connect(borrower)
-//         .getMaxBorrowableAmount();
-//       expect(initialMaxBorrowable).to.equal(0);
-
-//       // Deposit collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Now should have borrowable amount
-//       const maxBorrowableAfterCollateral = await dscEngine
-//         .connect(borrower)
-//         .getMaxBorrowableAmount();
-//       expect(maxBorrowableAfterCollateral).to.be.gt(0);
-
-//       // Borrow max amount
-//       await dscEngine
-//         .connect(borrower)
-//         .borrowStablecoin(maxBorrowableAfterCollateral);
-
-//       // New max borrowable should be 0
-//       const maxBorrowableAfterMaxBorrow = await dscEngine
-//         .connect(borrower)
-//         .getMaxBorrowableAmount();
-//       expect(maxBorrowableAfterMaxBorrow).to.equal(0);
-//     });
-
-//     it("Should correctly calculate max withdrawable collateral", async function () {
-//       const { dscEngine, lender, borrower } = await loadFixture(
-//         deployContractsFixture
-//       );
-
-//       // Deposit collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // No debt, max withdrawable should be full collateral
-//       const initialMaxWithdrawable = await dscEngine
-//         .connect(borrower)
-//         .getMaxWithdrawableCollateral();
-//       expect(initialMaxWithdrawable).to.equal(collateralAmount);
-
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrow some amount
-//       const borrowAmount = ethers.utils.parseEther("1000");
-//       await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
-
-//       // Now max withdrawable should be less than full collateral
-//       const maxWithdrawableAfterBorrow = await dscEngine
-//         .connect(borrower)
-//         .getMaxWithdrawableCollateral();
-//       expect(maxWithdrawableAfterBorrow).to.be.lt(collateralAmount);
+//     it("Should accrue interest for borrowers", async function () {
+//       // Similar test for borrower interest
+//       // ...
 //     });
 //   });
 
-//   describe("Interest Calculation", function () {
-//     it("Should accrue interest on debt over time", async function () {
-//       const { dscEngine, interestRateModel, lender, borrower } =
-//         await loadFixture(deployContractsFixture);
+//   describe("Health Factor", function () {
+//     it("Should calculate health factor correctly", async function () {
+//       // Setup user position
+//       await dscEngine.connect(user2).depositStablecoin(USDC_AMOUNT);
+//       await dscEngine.connect(user1).depositCollateral({ value: ETH_AMOUNT });
+//       await dscEngine.connect(user1).borrowStablecoin(USDC_AMOUNT.div(4));
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
-
-//       // Borrower deposits collateral
-//       const collateralAmount = ethers.utils.parseEther("1");
-//       await dscEngine
-//         .connect(borrower)
-//         .depositCollateral({ value: collateralAmount });
-
-//       // Borrower borrows stablecoin
-//       const borrowAmount = ethers.utils.parseEther("1000");
-//       await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
-
-//       // Initial accrued interest should be 0 or very small
-//       const initialInterest = await dscEngine
-//         .connect(borrower)
-//         .getYourAccruedDebtInterest();
-
-//       // Skip forward in time to accrue interest
-//       await ethers.provider.send("evm_increaseTime", [60 * 60 * 24 * 30]); // 30 days
-//       await ethers.provider.send("evm_mine");
-
-//       // Check accrued interest
-//       const accruedInterest = await dscEngine
-//         .connect(borrower)
-//         .getYourAccruedDebtInterest();
-//       expect(accruedInterest).to.be.gt(initialInterest);
-//     });
-
-//     it("Should accrue interest on deposits over time", async function () {
-//       const { dscEngine, interestRateModel, lender } = await loadFixture(
-//         deployContractsFixture
+//       // Calculate expected health factor: (collateralValue * threshold) / (debtValue * 100) * precision
+//       const ethPrice = ethers.utils.parseUnits("2000", 18);
+//       const collateralValue = ETH_AMOUNT.mul(ethPrice).div(
+//         ethers.utils.parseEther("1")
 //       );
+//       const debtValue = USDC_AMOUNT.div(4);
+//       const expectedHealthFactor = collateralValue
+//         .mul(150)
+//         .mul(ethers.utils.parseEther("1"))
+//         .div(debtValue.mul(100));
 
-//       // Lender deposits stablecoin
-//       const lenderDepositAmount = ethers.utils.parseEther("10000");
-//       await dscEngine.connect(lender).depositStablecoin(lenderDepositAmount);
+//       const healthFactor = await dscEngine.getHealthFactor(user1.address);
 
-//       // Initial accrued interest should be 0 or very small
-//       const initialInterest = await dscEngine
-//         .connect(lender)
-//         .getYourEarnedLendingInterest();
-
-//       // Skip forward in time to accrue interest
-//       await ethers.provider.send("evm_increaseTime", [60 * 60 * 24 * 30]); // 30 days
-//       await ethers.provider.send("evm_mine");
-
-//       // Check accrued interest
-//       const accruedInterest = await dscEngine
-//         .connect(lender)
-//         .getYourEarnedLendingInterest();
-//       expect(accruedInterest).to.be.gt(initialInterest);
+//       // Allow some difference due to rounding
+//       expect(healthFactor).to.be.closeTo(
+//         expectedHealthFactor,
+//         ethers.utils.parseEther("0.1")
+//       );
 //     });
 //   });
 // });
