@@ -1,76 +1,192 @@
 "use client";
-
 import React, { useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { DefiContext } from "../../context/DefiContext";
 import { X } from "lucide-react";
+import { ethers } from "ethers";
 
 const LendModal = () => {
-  const { openModalScreen, setOpenModalScreen } = useContext(DefiContext);
-  const [mounted, setMounted] = useState(false);
+    const { openModalScreen, setOpenModalScreen, contract, userAddress, updateUserData } = useContext(DefiContext);
+    const [mounted, setMounted] = useState(false);
+    const [amount, setAmount] = useState("");
+    const [walletBalance, setWalletBalance] = useState("0");
+    const [loading, setLoading] = useState(false);
+    const [usdValue, setUsdValue] = useState("0.00");
+    const [lendingStats, setLendingStats] = useState({
+        totalSupply: "0",
+        userLendBalance: "0",
+        earnedInterest: "0",
+        apy: "5"
+    });
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+    useEffect(() => {
+        setMounted(true);
+        if (contract && userAddress) {
+            fetchWalletBalance();
+            fetchLendingStats();
+        }
+    }, [userAddress, contract]);
 
-  if (!mounted || openModalScreen !== "Lend") return null;
+    const fetchLendingStats = async () => {
+        try {
+            const [totalSupply, userLendBalance, earnedInterest] = await Promise.all([
+                contract.getTotalStablecoinInPool(),
+                contract.getYourLendedStablecoin(),
+                contract.getYourEarnedLendingInterest()
+            ]);
 
-  return createPortal(
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-70">
-      <div className="bg-gray-900 p-6 rounded-2xl shadow-2xl w-[500px] border border-gray-700">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-xl font-semibold text-white">Supply ETH</h2>
-          <button
-            onClick={() => setOpenModalScreen(null)}
-            className="text-gray-400 hover:text-white transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+            setLendingStats({
+                totalSupply: ethers.formatEther(totalSupply),
+                userLendBalance: ethers.formatEther(userLendBalance),
+                earnedInterest: ethers.formatEther(earnedInterest),
+                apy: "5"
+            });
+        } catch (error) {
+            console.error("Error fetching lending stats:", error);
+        }
+    };
 
+    const fetchWalletBalance = async () => {
+        if (window.ethereum && userAddress) {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const balance = await provider.getBalance(userAddress);
+            setWalletBalance(ethers.formatEther(balance));
+        }
+    };
+    const handleLend = async () => {
+        if (!amount || !contract) return;
+        setLoading(true);
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const feeData = await provider.getFeeData();
+            
+            // Convert amount to proper format for USDC (6 decimals)
+            const amountInWei = ethers.parseUnits(amount, 6);
+    
+            // Call depositStablecoin instead of depositCollateralAndBorrowStablecoin
+            const tx = await contract.depositStablecoin(amountInWei, {
+                maxFeePerGas: feeData.maxFeePerGas,
+                maxPriorityFeePerGas: feeData.maxPriorityFeePerGas
+            });
+    
+            const receipt = await tx.wait();
+            
+            await Promise.all([
+                updateUserData(contract, userAddress),
+                fetchLendingStats(),
+                fetchWalletBalance()
+            ]);
+    
+            setAmount("");
+            setUsdValue("0.00");
+            setOpenModalScreen(null);
+    
+        } catch (error) {
+            console.log("Lending failed:", {
+                amount,
+                error: error.message,
+                chainId: await window.ethereum.request({ method: 'eth_chainId' })
+            });
+            alert("Lending failed. Please check your wallet and try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    
+    const handleMaxClick = () => {
+        const maxAmount = parseFloat(walletBalance) > 0.01 
+            ? (parseFloat(walletBalance) - 0.01).toFixed(18)
+            : "0";
+        setAmount(maxAmount);
+        setUsdValue((parseFloat(maxAmount) * 3000).toFixed(2));
+    };
 
-        {/* Amount Input */}
-        <div className="space-y-2">
-          <label className="text-gray-400 text-sm">Amount</label>
-          <div className="flex items-center bg-gray-800 p-3 rounded-lg border border-gray-700">
-            <input
-              type="number"
-              placeholder="0.00"
-              className="bg-transparent flex-grow outline-none text-white placeholder-gray-500"
-            />
-            <span className="text-gray-400">ETH</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Wallet balance: 0.996216</span>
-            <button className="text-blue-400 hover:text-blue-500 transition">MAX</button>
-          </div>
-        </div>
+    const handleAmountChange = (e) => {
+        const value = e.target.value;
+        if (value === "" || parseFloat(value) >= 0) {
+            setAmount(value);
+            setUsdValue((parseFloat(value) || 0) * 3000);
+        }
+    };
 
-        {/* Transaction Overview */}
-        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 my-5">
-          <div className="flex justify-between text-sm text-gray-400">
-            <span>Supply APY</span> 
-            <span className="text-white">5%</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-400 mt-2">
-            <span>Collateralization</span> 
-            <span className="text-green-400 font-medium">Enabled</span>
-          </div>
-        </div>
+    if (!mounted || openModalScreen !== "Lend") return null;
 
-        {/* Submit Button */}
-        <button
-          className="w-full bg-gray-700 text-gray-500 px-4 py-3 rounded-lg cursor-not-allowed transition"
-          disabled
-        >
-          Wrong Network
-        </button>
-      </div>
-    </div>,
-    document.getElementById("modal-root")
-  );
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-70">
+            <div className="bg-gray-900 p-6 rounded-2xl shadow-2xl w-[500px] border border-gray-700">
+                <div className="flex justify-between items-center mb-5">
+                    <h2 className="text-xl font-semibold text-white">Supply USDC</h2>
+                    <button onClick={() => setOpenModalScreen(null)} className="text-gray-400 hover:text-white transition">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-gray-400 text-sm">Total Supply</p>
+                            <p className="text-white">{parseFloat(lendingStats.totalSupply).toFixed(4)} USDC</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Your Lending</p>
+                            <p className="text-white">{parseFloat(lendingStats.userLendBalance).toFixed(4)} USDC</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Earned Interest</p>
+                            <p className="text-green-400">{parseFloat(lendingStats.earnedInterest).toFixed(4)} USDC</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-gray-400 text-sm">Amount</label>
+                    <div className="flex items-center bg-gray-800 p-3 rounded-lg border border-gray-700">
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.000000000000000001"
+                            className="bg-transparent flex-grow outline-none text-white placeholder-gray-500"
+                        />
+                        <span className="text-gray-400">USDC</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-500">
+                        <div className="flex flex-col">
+                            <span>${usdValue}</span>
+                            <span>Balance: {parseFloat(walletBalance).toFixed(4)} USDC</span>
+                        </div>
+                        <button onClick={handleMaxClick} className="text-blue-400 hover:text-blue-500 transition">
+                            MAX
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 my-5">
+                    <div className="flex justify-between text-sm text-gray-400">
+                        <span>Supply APY</span>
+                        <span className="text-white">{lendingStats.apy}%</span>
+                    </div>
+                </div>
+
+                <button
+    onClick={handleLend}
+    disabled={loading || !amount || !contract || parseFloat(amount) <= 0}
+    className={`w-full px-4 py-3 rounded-lg transition ${
+        loading || !amount || parseFloat(amount) <= 0
+            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+            : "bg-blue-500 text-white hover:bg-blue-600"
+    }`}
+>
+    {loading ? "Processing..." : "Lend"}
+</button>
+            </div>
+        </div>,
+        document.getElementById("modal-root")
+    );
 };
 
 export default LendModal;
