@@ -15,7 +15,7 @@ const contractAbi = DefiContract.abi;
 const contractAddress = DefiContractAddress.DSCEngine;
 const Page = () => {
 
-    const {setAccounts,setUserAddress,setCurrentState,totalLendingTokens,totalCollateral,totalLend,totalBorrow,tokensToBorrow,tokensToLend}=useContext(DefiContext);
+    const {setAccounts,setUserAddress,currentState,setCurrentState,totalLendingTokens,totalCollateral,totalLend,totalBorrow,tokensToBorrow,tokensToLend}=useContext(DefiContext);
   
     useEffect(()=>{
 
@@ -44,6 +44,35 @@ const Page = () => {
           }
           connectWallet();
   },[])
+
+
+        //To set total collateral balance 
+  // useEffect(()=>{ 
+  // const value =currentState.contract?.getCollateralDepositBalance(); 
+  // setTotalCollateral(); 
+  // },[]) 
+
+
+  // To get total stable coins supply balance
+
+  useEffect(()=>{ 
+    async function fetch(){
+      const value1 =await currentState.contract?.getTotalStablecoinInPool(); 
+      const value2 =await currentState.contract?.getYourCollateralDeposited();
+      // const value3 =await currentState.contract?.depositStablecoin(parseInt(10000000000)); 
+      // const value4 =await currentState.contract?.getUSDCPrice();
+
+      // console.log(value4)
+    }
+    fetch();
+   },[currentState])
+
+    //To get  stable coins  balance of an account
+     // useEffect(()=>{ 
+     // const value =currentState.contract?.getStableCoinBalance(address);
+      // },[])
+  
+    // Sections that remain empty until backend integration
 
   // Sections that remain empty until backend integration
 

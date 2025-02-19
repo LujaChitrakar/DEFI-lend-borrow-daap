@@ -4,6 +4,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { DefiContext } from "../../context/DefiContext";
 import { X } from "lucide-react";
+import { ethers } from "ethers";
 
 const BorrowModal = () => {
   const { openModalScreen, setOpenModalScreen,currentState } = useContext(DefiContext);
@@ -14,10 +15,12 @@ const BorrowModal = () => {
   }, []);
 
   const handleBorrow =async()=>{
-// const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin('0x38e92e887AA4C802aD70491Df59286EaaBd14a73')
-console.log(res)
-
-  }
+    const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin({value:ethers.parseEther("0.00015")})
+    // const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin({value:1000000000000000000})
+    
+    console.log(res)
+    
+      }
 
   if (!mounted || openModalScreen !== "Borrow") return null;
 
