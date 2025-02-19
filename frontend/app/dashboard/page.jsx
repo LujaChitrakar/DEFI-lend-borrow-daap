@@ -15,7 +15,7 @@ const contractAbi = DefiContract.abi;
 const contractAddress = DefiContractAddress.DSCEngine;
 const Page = () => {
 
-    const {setAccounts,setUserAddress,setCurrentState}=useContext(DefiContext);
+    const {setAccounts,setUserAddress,setCurrentState,totalLendingTokens,totalCollateral,totalLend,totalBorrow,tokensToBorrow,tokensToLend}=useContext(DefiContext);
   
     useEffect(()=>{
 
@@ -46,20 +46,7 @@ const Page = () => {
   },[])
 
   // Sections that remain empty until backend integration
-  const totalLendingTokens = [{ message: "No lending tokens yet." }];
-  const totalCollateral = [ {asset: "USDC", logo: "/usdc.png", available: 1000}];
-  const totalLends = [{ message: "Nothing lent yet." }];
-  const totalBorrows = [ {
-    asset: "USDC", logo: "/usdc.png", available: 1000, apy: "2.5%", action: "Lend" }];
-  const tokensToBorrow = [
-    {
-       asset: "USDC", logo: "/usdc.png", available: 1000, apy: "2.5%", action: "Lend" },
 
-  ];
-  const tokensToLend = [
-    {asset: "USDC", logo: "/usdc.png", available: 1000, apy: "2.5%", action: "Lend" }
-
-  ];
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -84,8 +71,8 @@ const Page = () => {
 
         {/* Total Lends | Total Borrows */}
         <div className="grid grid-cols-2 gap-6">
-          <Container name={"Total Lends"} data={totalLends} />
-          <Container name={"Total Borrows"} data={totalBorrows} label1={"Borrow"} label2 ={"Repay"} apy={"7%"}/>
+          <Container name={"Total Lends"} data={totalLend} />
+          <Container name={"Total Borrows"} data={totalBorrow} label1={"Borrow"} label2 ={"Repay"} apy={"7%"}/>
         </div>
 
         {/* Tokens to Lend | Tokens to Borrow */}
