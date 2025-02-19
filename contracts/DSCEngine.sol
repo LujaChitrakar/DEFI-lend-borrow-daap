@@ -100,11 +100,13 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         moreThanZero(amountStableCoin)
         nonReentrant
     {
-        i_interest.accureInterest(
-            msg.sender,
-            s_stableCoinDeposit[msg.sender],
-            true
-        );
+        if (s_stableCoinDeposit[msg.sender] > 0) {
+            i_interest.accureInterest(
+                msg.sender,
+                s_stableCoinDeposit[msg.sender],
+                true
+            );
+        }
         if (s_startTimestamp[msg.sender] == 0) {
             s_startTimestamp[msg.sender] = block.timestamp;
         }
