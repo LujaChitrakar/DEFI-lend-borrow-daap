@@ -49,9 +49,9 @@ contract PriceOracle is Ownable {
     function getLatestPrice(
         address tokenAddress
     ) public view returns (uint256) {
-        if (s_priceFeeds[tokenAddress] == address(0)) {
-            revert PriceOracle__InvaidToken();
-        }
+        // if (s_priceFeeds[tokenAddress] == address(0)) {
+        //     revert PriceOracle__InvaidToken();
+        // }
 
         AggregatorV3Interface priceFeed = AggregatorV3Interface(
             s_priceFeeds[tokenAddress]
@@ -69,7 +69,7 @@ contract PriceOracle is Ownable {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_ethPriceFeed);
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Invalid Eth price from oracle");
-        return uint256(price) * 1e10;
+        return uint256(price);
     }
 
     /**

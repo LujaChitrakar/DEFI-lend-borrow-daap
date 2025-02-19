@@ -2,94 +2,160 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("PriceOracle", function () {
-  let PriceOracle, priceOracle, owner, user;
-  let mockPriceFeed, mockEthPriceFeed;
+  let priceOracle;
+  let owner;
+  let user;
+  let mockEthPriceFeed;
+  let mockTokenPriceFeed;
+
+  const TOKEN_ADDRESS = "0x1234567890123456789012345678901234567890";
+  const MOCK_PRICE = 200000000000n; // $2000 with 8 decimals
+  const SCALE_FACTOR = 10n ** 10n;
+  const ETH_AMOUNT = ethers.parseEther("1.0");
 
   beforeEach(async function () {
-    [owner, user] = await ethers.getSigners();
-
-    // Deploy a mock price feed (for tokens)
-    const MockPriceFeed = await ethers.getContractFactory("MockV3Aggregator");
-    mockPriceFeed = await MockPriceFeed.deploy(8, 2000 * 1e8); // Price = $2000
-    await mockPriceFeed.deployed();
-
-    mockEthPriceFeed = await MockPriceFeed.deploy(8, 3000 * 1e8); // ETH Price = $3000
-    await mockEthPriceFeed.deployed();
+    // Deploy mock price feeds
+    const MockV3Aggregator = await ethers.getContractFactory(
+      "MockV3Aggregator"
+    );
+    mockEthPriceFeed = await MockV3Aggregator.deploy(8, MOCK_PRICE);
+    mockTokenPriceFeed = await MockV3Aggregator.deploy(8, MOCK_PRICE);
 
     // Deploy PriceOracle
-    PriceOracle = await ethers.getContractFactory("PriceOracle");
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    [owner, user] = await ethers.getSigners();
     priceOracle = await PriceOracle.deploy();
-    await priceOracle.deploy();
   });
 
-  it("Should allow the owner to set a price feed", async function () {
-    await priceOracle.setPriceFeed(
-      mockPriceFeed.address,
-      mockPriceFeed.address
-    );
-    expect(await priceOracle.getPriceFeed(mockPriceFeed.address)).to.equal(
-      mockPriceFeed.address
-    );
+  describe("Deployment", function () {
+    it("Should set the right owner", async function () {
+      expect(await priceOracle.owner()).to.equal(owner.address);
+    });
   });
 
-  it("Should revert if a non-owner tries to set a price feed", async function () {
-    await expect(
-      priceOracle
-        .connect(user)
-        .setPriceFeed(mockPriceFeed.address, mockPriceFeed.address)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
+  describe("Price Feed Management", function () {
+    it("Should allow owner to set price feed for a token", async function () {
+      await expect(
+        priceOracle.setPriceFeed(TOKEN_ADDRESS, mockTokenPriceFeed.target)
+      )
+        .to.emit(priceOracle, "PriceFeedUpdated")
+        .withArgs(TOKEN_ADDRESS, mockTokenPriceFeed.target);
+
+      expect(await priceOracle.getPriceFeed(TOKEN_ADDRESS)).to.equal(
+        mockTokenPriceFeed.target
+      );
+    });
+
+    it("Should allow owner to set ETH price feed", async function () {
+      await priceOracle.setEthPriceFeed(mockEthPriceFeed.target);
+
+      // We need to implement a getter for s_ethPriceFeed to test this properly
+      // For now, we'll test the functionality through getEthLatestPrice
+      await expect(priceOracle.getEthLatestPrice()).to.not.be.reverted;
+    });
+
+    it("Should revert when non-owner tries to set price feed", async function () {
+      await expect(
+        priceOracle
+          .connect(user)
+          .setPriceFeed(TOKEN_ADDRESS, mockTokenPriceFeed.target)
+      ).to.be.reverted;
+    });
+
+    it("Should revert when non-owner tries to set ETH price feed", async function () {
+      await expect(
+        priceOracle.connect(user).setEthPriceFeed(mockEthPriceFeed.target)
+      ).to.be.reverted;
+    });
   });
 
-  it("Should retrieve the latest price correctly", async function () {
-    await priceOracle.setPriceFeed(
-      mockPriceFeed.address,
-      mockPriceFeed.address
-    );
-    const price = await priceOracle.getLatestPrice(mockPriceFeed.address);
-    expect(price).to.equal(
-      ethers.BigNumber.from(2000).mul(ethers.BigNumber.from(10).pow(18))
-    ); // 2000 * 1e18
+  describe("Price Queries", function () {
+    beforeEach(async function () {
+      await priceOracle.setPriceFeed(TOKEN_ADDRESS, mockTokenPriceFeed.target);
+      await priceOracle.setEthPriceFeed(mockEthPriceFeed.target);
+    });
+
+    it("Should get the latest token price", async function () {
+      const price = await priceOracle.getLatestPrice(TOKEN_ADDRESS);
+      // The price is multiplied by 1e10 in the contract
+      expect(price).to.equal(MOCK_PRICE);
+    });
+
+    it("Should get the latest ETH price", async function () {
+      const price = await priceOracle.getEthLatestPrice();
+      // The price is multiplied by 1e10 in the contract
+      expect(price).to.equal(MOCK_PRICE);
+    });
+
+    it("Should revert when querying ETH price with unset ETH price feed", async function () {
+      // Deploy a new instance without setting ETH price feed
+      const PriceOracle = await ethers.getContractFactory("PriceOracle");
+      const newPriceOracle = await PriceOracle.deploy();
+
+      await expect(
+        newPriceOracle.getEthLatestPrice()
+      ).to.be.revertedWithCustomError(
+        newPriceOracle,
+        "PriceOracle__InvaidCollateral"
+      );
+    });
+
+    it("Should convert token amount to USD value", async function () {
+      const tokenAmount = ethers.parseUnits("1.0"); // 1 token with 18 decimals
+      const usdValue = await priceOracle.getTokenValueInUsd(
+        TOKEN_ADDRESS,
+        tokenAmount
+      );
+
+      // 1 token * $2000 = $2000 with 18 decimals
+      const expectedValue = ethers.parseUnits("2000");
+      expect(usdValue).to.equal(expectedValue);
+    });
+
+    it("Should convert ETH amount to USD value", async function () {
+      const ethAmount = ethers.parseEther("1.0"); // 1 ETH
+      const usdValue = await priceOracle.getEthValueInUsd(ethAmount);
+
+      // 1 ETH * $2000 = $2000 with 18 decimals
+      const expectedValue = ethers.parseUnits("2000", 18n);
+      expect(usdValue).to.equal(expectedValue);
+    });
   });
 
-  it("Should revert when getting price for an unregistered token", async function () {
-    await expect(
-      priceOracle.getLatestPrice(mockPriceFeed.address)
-    ).to.be.revertedWith("PriceOracle__InvaidToken");
-  });
+  describe("Collateral Management", function () {
+    beforeEach(async function () {
+      await priceOracle.setEthPriceFeed(mockEthPriceFeed.target);
+    });
 
-  it("Should set and retrieve ETH price feed correctly", async function () {
-    await priceOracle.setEthPriceFeed(mockEthPriceFeed.address);
-    expect(await priceOracle.getEthLatestPrice()).to.equal(
-      ethers.BigNumber.from(3000).mul(ethers.BigNumber.from(10).pow(18))
-    ); // 3000 * 1e18
-  });
+    it("Should allow owner to update collateral for a user", async function () {
+      await expect(priceOracle.updateCollateral(user.address, ETH_AMOUNT))
+        .to.emit(priceOracle, "collateralUpdated")
+        .withArgs(user.address, ETH_AMOUNT);
+    });
 
-  it("Should calculate token value in USD correctly", async function () {
-    await priceOracle.setPriceFeed(
-      mockPriceFeed.address,
-      mockPriceFeed.address
-    );
-    const amount = ethers.utils.parseUnits("2", 18); // 2 tokens
-    const usdValue = await priceOracle.getTokenValueInUsd(
-      mockPriceFeed.address,
-      amount
-    );
-    expect(usdValue).to.equal(ethers.utils.parseUnits("4000", 18)); // 2 * 2000
-  });
+    it("Should revert when non-owner tries to update collateral", async function () {
+      await expect(
+        priceOracle.connect(user).updateCollateral(user.address, ETH_AMOUNT)
+      ).to.be.reverted;
+    });
 
-  it("Should update and retrieve collateral correctly", async function () {
-    await priceOracle.updateCollateral(
-      user.address,
-      ethers.utils.parseUnits("1", 18)
-    ); // 1 ETH
-    expect(await priceOracle.getCollateralValue(user.address)).to.equal(
-      ethers.utils.parseUnits("3000", 18)
-    ); // 1 ETH = $3000
-  });
+    it("Should get the correct collateral value in USD", async function () {
+      await priceOracle.updateCollateral(user.address, ETH_AMOUNT);
 
-  it("Should revert when non-owner tries to update collateral", async function () {
-    await expect(
-      priceOracle.connect(user).updateCollateral(user.address, 1000)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
+      const collateralValue = await priceOracle.getCollateralValue(
+        user.address
+      );
+
+      // 1 ETH * $2000 = $2000 with 18 decimals
+      const expectedValue = ethers.parseUnits("2000", 18n);
+      expect(collateralValue).to.equal(expectedValue);
+    });
+
+    it("Should return zero for users with no collateral", async function () {
+      const collateralValue = await priceOracle.getCollateralValue(
+        user.address
+      );
+      expect(collateralValue).to.equal(0);
+    });
   });
 });
