@@ -9,6 +9,7 @@ import DefiContract from "../../contracts/DSCEngine.json";
 import DefiContractAddress from "../../contracts/contract-address.json";
 import { DefiContext } from "../context/DefiContext";
 import { ethers } from "ethers";
+import RepayModal from "../components/modal/RepayModal";
 
 const contractAbi = DefiContract.abi;
 const contractAddress = DefiContractAddress.DSCEngine;
@@ -46,9 +47,10 @@ const Page = () => {
 
   // Sections that remain empty until backend integration
   const totalLendingTokens = [{ message: "No lending tokens yet." }];
-  const totalCollateral = [{ message: "No collateral provided yet." }];
+  const totalCollateral = [ {asset: "USDC", logo: "/usdc.png", available: 1000}];
   const totalLends = [{ message: "Nothing lent yet." }];
-  const totalBorrows = [{ message: "Nothing borrowed yet." }];
+  const totalBorrows = [ {
+    asset: "USDC", logo: "/usdc.png", available: 1000, apy: "2.5%", action: "Lend" }];
   const tokensToBorrow = [
     {
        asset: "USDC", logo: "/usdc.png", available: 1000, apy: "2.5%", action: "Lend" },
@@ -64,6 +66,7 @@ const Page = () => {
       {/* Modals */}
       <LendModal />
       <BorrowModal />
+      <RepayModal/>
       <div id="modal-root"></div>
 
       {/* Dashboard Header */}
@@ -82,13 +85,13 @@ const Page = () => {
         {/* Total Lends | Total Borrows */}
         <div className="grid grid-cols-2 gap-6">
           <Container name={"Total Lends"} data={totalLends} />
-          <Container name={"Total Borrows"} data={totalBorrows} />
+          <Container name={"Total Borrows"} data={totalBorrows} label1={"Borrow"} label2 ={"Repay"} apy={"7%"}/>
         </div>
 
         {/* Tokens to Lend | Tokens to Borrow */}
         <div className="grid grid-cols-2 gap-6">
-          <Container name={"Tokens to Lend"} data={tokensToLend} label={"Lend"} apy={"5%"}/>
-          <Container name={"Tokens to Borrow"} data={tokensToBorrow} label={"Borrow"} apy={"7%"}/>
+          <Container name={"Tokens to Lend"} data={tokensToLend} label1={"Lend"} apy={"5%"}/>
+          <Container name={"Tokens to Borrow"} data={tokensToBorrow} label1={"Borrow"} apy={"7%"}/>
         </div>
       </div>
     </div>
