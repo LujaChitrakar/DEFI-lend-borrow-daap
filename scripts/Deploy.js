@@ -21,13 +21,13 @@ async function main() {
 
   // const [deployer] = await ethers.getSigners();
 
-  if (network.name != "hardhat" && network.name !== "localhost") {
-    console.log("Waiting for block confirmations");
+  if (network.name !== "hardhat" && network.name !== "localhost") {
+    console.log("Waiting for 5 confirmations before verifying...");
 
-    await Promise.all([dscEngine.waitForDeployment()]);
+    await dscEngine.deploymentTransaction().wait(5); // Wait for 5 confirmations
+    console.log("Verifying contract...");
 
-    console.log("Verifying contract ....");
-
+    await verify(priceOracle.target, []);
     await verify(interestRateModel.target, []);
     await verify(dscEngine.target, [
       priceOracle.target,

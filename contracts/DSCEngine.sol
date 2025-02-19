@@ -43,6 +43,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     uint256 public s_totalStablecoin;
 
     /**EVENTS */
+    event CollateralDepositedAndBorrowed(
+        address indexed user,
+        uint256 collateralAmount,
+        uint256 borrowedAmount
+    );
     event StableCoinDeposited(address indexed from, uint256 amount);
     event CollateralDeposited(address indexed from, uint256 indexed amount);
     event StableCoinWithdrawed(address indexed from, uint256 indexed amount);
@@ -74,7 +79,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     modifier sufficientDeposit(address user, uint256 amount) {
         require(s_stableCoinDeposit[user] >= amount, "Not sufficient deposit");
-        require(s_stableCoinDeposit[user] >= amount, "Not sufficient deposit");
         _;
     }
 
@@ -101,6 +105,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             s_stableCoinDeposit[msg.sender],
             true
         );
+        if (s_startTimestamp[msg.sender] == 0) {
+            s_startTimestamp[msg.sender] = block.timestamp;
+        }
         bool success = IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
             address(this),
@@ -122,6 +129,15 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         moreThanZero(amountStableCoin)
         nonReentrant
     {
+        require(
+            s_stableCoinDeposit[msg.sender] >= amountStableCoin,
+            "Insufficient balance"
+        );
+        require(
+            s_totalStablecoin >= amountStableCoin,
+            "Insufficient protocol liquidity"
+        );
+
         i_interest.accureInterest(
             msg.sender,
             s_stableCoinDeposit[msg.sender],
@@ -129,6 +145,10 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         );
 
         uint256 accuredInterest = i_interest.getAccuredInterest(msg.sender);
+
+        s_stableCoinDeposit[msg.sender] -= amountStableCoin;
+        s_totalStablecoin -= amountStableCoin;
+        i_interest.resetInterest(msg.sender);
 
         bool success = IERC20(USDC_ADDRESS).transfer(
             msg.sender,
@@ -138,8 +158,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             revert DSCEngine__TransferFailed();
         }
 
-        s_stableCoinDeposit[msg.sender] -= amountStableCoin;
-        s_totalStablecoin -= amountStableCoin;
         i_interest.resetInterest(msg.sender);
         emit StableCoinWithdrawed(msg.sender, amountStableCoin);
     }
@@ -159,7 +177,26 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         nonReentrant
     {
         depositCollateral();
-        borrowStablecoin(msg.value);
+
+        uint256 ethValueInUsd = i_priceOracle.getEthValueInUsd(msg.value);
+        uint256 borrowAmountInUsd = ethValueInUsd / 2;
+
+        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+        uint256 borrowAmountInUsdc = (borrowAmountInUsd * 1e18) / usdcPrice;
+
+        borrowAmountInUsdc = borrowAmountInUsdc > s_totalStablecoin
+            ? s_totalStablecoin
+            : borrowAmountInUsdc;
+
+        if (borrowAmountInUsdc > 0) {
+            borrowStablecoin(borrowAmountInUsdc);
+        }
+
+        emit CollateralDepositedAndBorrowed(
+            msg.sender,
+            msg.value,
+            borrowAmountInUsdc
+        );
     }
 
     function depositCollateral()
@@ -231,16 +268,16 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         nonReentrant
         validStablecoin(USDC_ADDRESS)
     {
-        require(
-            s_debt[msg.sender] >= stablecoinAmountToRepay,
-            "Repay amount exceeds debt"
-        );
+        i_interest.getAccuredInterest(msg.sender);
         uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
         uint256 principal = s_debt[msg.sender];
         uint256 totalDebt = principal + interestAccured;
-        require(totalDebt > 0, "No outstanding debt");
 
-        i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        require(totalDebt > 0, "No outstanding debt");
+        require(
+            stablecoinAmountToRepay >= totalDebt,
+            "Repay amount exceeds debt"
+        );
 
         bool success = IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
@@ -250,8 +287,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         if (!success) {
             revert DSCEngine__LoanRepaymentFailed();
         }
-
-        s_debt[msg.sender] -= stablecoinAmountToRepay;
+        s_debt[msg.sender] = totalDebt > stablecoinAmountToRepay
+            ? totalDebt - stablecoinAmountToRepay
+            : 0;
         s_totalStablecoin += stablecoinAmountToRepay;
 
         if (s_debt[msg.sender] == 0) {
@@ -262,8 +300,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             msg.sender,
             s_collateralDeposit[msg.sender]
         );
-
-        i_interest.resetInterest(msg.sender);
 
         emit LoanRepaid(msg.sender, stablecoinAmountToRepay);
     }
@@ -277,6 +313,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             " Amount exceeds total collateral deposited"
         );
 
+        i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+
         uint256 newCollateral = totalDeposit - amountToWithdraw;
 
         uint256 debtValue = getDebtValue(msg.sender);
@@ -288,7 +326,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
         s_collateralDeposit[msg.sender] = newCollateral;
 
-        i_priceOracle.updateCollateral(msg.sender, amountToWithdraw);
+        i_priceOracle.updateCollateral(msg.sender, newCollateral);
 
         (bool success, ) = payable(msg.sender).call{value: amountToWithdraw}(
             ""
@@ -543,5 +581,120 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     function canUserBeLiquidated(address user) external view returns (bool) {
         uint256 healthFactor = this.getHealthFactor(user);
         return healthFactor < PRECISION;
+    }
+
+    /**FOR FRONTEND */
+    function getTotalStablecoinInPool() external view returns (uint256) {
+        return s_totalStablecoin;
+    }
+
+    function getYourBorrowedStablecoin() external view returns (uint256) {
+        return s_debt[msg.sender];
+    }
+
+    function getYourCollateralDeposited() external view returns (uint256) {
+        return s_collateralDeposit[msg.sender];
+    }
+
+    function getYourLendedStablecoin() external view returns (uint256) {
+        return s_stableCoinDeposit[msg.sender];
+    }
+
+    function getUSDCPrice() external view returns (uint256) {
+        return i_priceOracle.getLatestPrice(USDC_ADDRESS);
+    }
+
+    function getETHPrice() external view returns (uint256) {
+        return i_priceOracle.getEthLatestPrice();
+    }
+
+    function getYourCollateralValueInUSD() external view returns (uint256) {
+        return getAccountCollateralValueInUSD(msg.sender);
+    }
+
+    function getYourDebtValueInUSD() external view returns (uint256) {
+        return getTotalDebtOfAccount(msg.sender);
+    }
+
+    function getMaxBorrowableAmount() external view returns (uint256) {
+        uint256 collateralValueInUSD = getAccountCollateralValueInUSD(
+            msg.sender
+        );
+        uint256 maxDebtValueInUSD = (collateralValueInUSD * 100) /
+            COLLATERAL_THRESHOLD;
+        uint256 currentDebtValueInUSD = getTotalDebtOfAccount(msg.sender);
+
+        if (currentDebtValueInUSD >= maxDebtValueInUSD) {
+            return 0;
+        }
+
+        uint256 remainingBorrowableValueInUSD = maxDebtValueInUSD -
+            currentDebtValueInUSD;
+        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+        uint256 maxBorrowableUSDC = (remainingBorrowableValueInUSD * 1e18) /
+            usdcPrice;
+
+        return
+            maxBorrowableUSDC > s_totalStablecoin
+                ? s_totalStablecoin
+                : maxBorrowableUSDC;
+    }
+
+    function getMaxWithdrawableCollateral() external view returns (uint256) {
+        uint256 debtValueInUSD = getTotalDebtOfAccount(msg.sender);
+
+        if (debtValueInUSD == 0) {
+            return s_collateralDeposit[msg.sender];
+        }
+
+        uint256 requiredCollateralValueInUSD = (debtValueInUSD *
+            COLLATERAL_THRESHOLD) / 100;
+        uint256 currentCollateralValueInUSD = getAccountCollateralValueInUSD(
+            msg.sender
+        );
+
+        if (currentCollateralValueInUSD <= requiredCollateralValueInUSD) {
+            return 0;
+        }
+
+        uint256 excessCollateralValueInUSD = currentCollateralValueInUSD -
+            requiredCollateralValueInUSD;
+        uint256 ethPrice = i_priceOracle.getEthLatestPrice();
+        uint256 withdrawableCollateralInETH = (excessCollateralValueInUSD *
+            1e18) / ethPrice;
+
+        return
+            withdrawableCollateralInETH > s_collateralDeposit[msg.sender]
+                ? s_collateralDeposit[msg.sender]
+                : withdrawableCollateralInETH;
+    }
+
+    /**
+     * @notice Returns the amount of interest accrued on the caller's debt
+     * @return Interest amount in stablecoin units
+     */
+    function getYourAccruedDebtInterest() external view returns (uint256) {
+        return i_interest.getAccuredInterest(msg.sender);
+    }
+
+    /**
+     * @notice Returns the amount of interest earned by the caller as a lender
+     * @return Interest amount in stablecoin units
+     */
+    function getYourEarnedLendingInterest() external view returns (uint256) {
+        return i_interest.getAccuredInterest(msg.sender);
+    }
+
+    function getYourHealthFactor() external view returns (uint256) {
+        uint256 totalCollateralValueInUsd = getAccountCollateralValueInUSD(
+            msg.sender
+        );
+        uint256 totalDebtInUsd = getTotalDebtOfAccount(msg.sender);
+
+        if (totalDebtInUsd == 0) return type(uint256).max;
+
+        return
+            (totalCollateralValueInUsd * PRECISION * COLLATERAL_THRESHOLD) /
+            (totalDebtInUsd * 100);
     }
 }
