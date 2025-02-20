@@ -31,7 +31,7 @@ const Container = ({ name, data = [], label1,label2,apy=null }) => {
                     {item.logo && <img src={item.logo} alt={item.asset} className="w-6 h-6" />}
                     {item.asset}
                   </td>
-                  <td className="py-2">{item.available || item.balance}</td>
+                  <td className="py-2">{item.available || 0}</td>
                   <td className="py-2">{apy}</td>
                   <td className="py-2">
                   {label1 && (
