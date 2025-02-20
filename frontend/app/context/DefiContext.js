@@ -129,6 +129,7 @@ export const DefiProvider = ({ children }) => {
         setOpenModalScreen,
         totalLendingTokens,
         totalCollateral,
+        setTotalCollateral,
         totalLend,
         totalBorrow,
         tokensToLend,

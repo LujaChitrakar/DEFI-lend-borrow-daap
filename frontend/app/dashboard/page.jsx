@@ -16,10 +16,13 @@ const contractAddress = DefiContractAddress.DSCEngine;
 const Page = () => {
   const {
     setAccounts,
+    userAddress,
     setUserAddress,
+    currentState,
     setCurrentState,
     totalLendingTokens,
     totalCollateral,
+    setTotalCollateral,
     totalLend,
     totalBorrow,
     tokensToBorrow,
@@ -52,6 +55,18 @@ const Page = () => {
     };
     connectWallet();
   }, []);
+
+
+  useEffect(()=>{
+const fetchCollateral =async()=>{
+   const value = await currentState.contract?.getYourCollateralDeposited();
+   setTotalCollateral((prev)=>{
+     var temp = prev[0];
+     return [{...temp,available:value}]
+  })
+}
+fetchCollateral();
+  },[currentState])
 
   // Sections that remain empty until backend integration
 
