@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext, useEffect } from "react";
 import DashboardHeader from "./DashboardHeader";
-import Container from "../components/container/page";
+import Container from "../components/container/Container";
 import LendModal from "../components/modal/LendModal";
 import BorrowModal from "../components/modal/BorrowModal";
 
@@ -56,17 +56,21 @@ const Page = () => {
     connectWallet();
   }, []);
 
+  useEffect(() => {
+    const fetchCollateral = async () => {
+      const value = await currentState.contract?.getYourCollateralDeposited();
+      setTotalCollateral((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value }];
+      });
 
-  useEffect(()=>{
-const fetchCollateral =async()=>{
-   const value = await currentState.contract?.getYourCollateralDeposited();
-   setTotalCollateral((prev)=>{
-     var temp = prev[0];
-     return [{...temp,available:value}]
-  })
-}
-fetchCollateral();
-  },[currentState])
+      setTotalCollateral((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value }];
+      });
+    };
+    fetchCollateral();
+  }, [currentState]);
 
   // Sections that remain empty until backend integration
 
