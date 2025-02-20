@@ -74,17 +74,6 @@ contract InterestRateModel is Ownable {
         s_accuredInterest[user] = 0;
     }
 
-    function testSetInitialTimestamp(address user) external {
-        s_lastInterestTimestamp[user] = block.timestamp;
-    }
-
-    function callStatic_calculateInterest(
-        address user,
-        uint256 principal,
-        bool isLending
-    ) external view returns (uint256) {
-        return _calculateInterest(user, principal, isLending);
-    }
     /**VIEW FUNCTIONS */
 
     function getLastInterestTimeStamp(

@@ -49,9 +49,9 @@ contract PriceOracle is Ownable {
     function getLatestPrice(
         address tokenAddress
     ) public view returns (uint256) {
-        // if (s_priceFeeds[tokenAddress] == address(0)) {
-        //     revert PriceOracle__InvaidToken();
-        // }
+        if (s_priceFeeds[tokenAddress] == address(0)) {
+            revert PriceOracle__InvaidToken();
+        }
 
         AggregatorV3Interface priceFeed = AggregatorV3Interface(
             s_priceFeeds[tokenAddress]
@@ -69,7 +69,7 @@ contract PriceOracle is Ownable {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_ethPriceFeed);
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Invalid Eth price from oracle");
-        return uint256(price);
+        return uint256(price) * 1e10;
     }
 
     /**
@@ -91,29 +91,10 @@ contract PriceOracle is Ownable {
         return (amount * price) / 1e18;
     }
 
-    /**
-    @notice updates users collateral balances
-    @param user The address of the User
-    @param amount The amount of collateral
-      */
-    function updateCollateral(address user, uint256 amount) external onlyOwner {
-        s_collateralBalances[user] = amount;
-        emit collateralUpdated(user, amount);
-    }
-
     /**VIEW FUNCTION */
     function getPriceFeed(
         address tokenAddress
     ) external view returns (address) {
         return s_priceFeeds[tokenAddress];
-    }
-
-    function getCollateralValue(address user) external view returns (uint256) {
-        uint256 totalCollateral = 0;
-        uint256 balance = s_collateralBalances[user];
-        if (balance > 0) {
-            totalCollateral = getEthValueInUsd(balance);
-        }
-        return totalCollateral;
     }
 }

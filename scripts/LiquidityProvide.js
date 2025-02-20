@@ -1,34 +1,66 @@
 const { ethers } = require("hardhat");
 
-async function depositStablecoin(amount) {
-  const USDCContractAddress = "0x38e92e887AA4C802aD70491Df59286EaaBd14a73";
-  const dscContractAddress = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6";
+async function depositMockStablecoin() {
+  // Contract addresses and amounts
+  const DSC_ENGINE_ADDRESS = "0x..."; // Your DSCEngine contract address
+  const MOCK_USDC_ADDRESS = "0x..."; // Your mock USDC token address
+  const AMOUNT_TO_DEPOSIT = ethers.utils.parseUnits("1000", 6); // 1000 USDC (6 decimals)
 
-  const [deployer] = await ethers.getSigners(); // Ensure the deployer is the owner
+  // Get signers
+  const [deployer] = await ethers.getSigners();
+  console.log("Depositing with account:", deployer.address);
 
-  // Attach to the deployed contract
-  const dsc = await ethers.getContractAt(
-    "DSCEngine",
-    dscContractAddress,
-    deployer
+  // Get contract instances
+  const dscEngine = await ethers.getContractAt("DSCEngine", DSC_ENGINE_ADDRESS);
+  const mockUSDC = await ethers.getContractAt("ERC20", MOCK_USDC_ADDRESS);
+
+  // Check balances before
+  const balanceBefore = await mockUSDC.balanceOf(deployer.address);
+  console.log(
+    "USDC balance before:",
+    ethers.utils.formatUnits(balanceBefore, 6)
   );
 
-  // Convert amount to correct format
-  const liquidityAmount = ethers.parseUnits(amount.toString(), 18);
+  // If using a mock token, mint some tokens first (if your mock allows it)
+  // Uncomment if your mock token has a mint function
+  // const mintTx = await mockUSDC.mint(deployer.address, AMOUNT_TO_DEPOSIT);
+  // await mintTx.wait();
+  // console.log("Minted mock USDC");
 
-  //   console.log(`Minting ${amount} USDC to ${walletAddress}...`);
+  // Approve DSCEngine to spend USDC
+  console.log("Approving tokens...");
+  const approveTx = await mockUSDC.approve(
+    DSC_ENGINE_ADDRESS,
+    AMOUNT_TO_DEPOSIT
+  );
+  await approveTx.wait();
+  console.log("Approved DSCEngine to spend USDC");
 
-  // Call mint function
-  const tx = await dsc.depositStablecoin(USDCContractAddress, liquidityAmount);
-  await tx.wait();
+  // Deposit to the contract
+  // Note: Based on your contract, you might need to modify this call
+  // to match your actual function for depositing stablecoin
+  console.log("Depositing tokens...");
+  const depositTx = await dscEngine.depositStablecoin(AMOUNT_TO_DEPOSIT);
+  await depositTx.wait();
 
-  console.log(`✅ Liquidity Provided successful! TX Hash: ${tx.hash}`);
+  // Check balances after
+  const balanceAfter = await mockUSDC.balanceOf(deployer.address);
+  console.log("USDC balance after:", ethers.utils.formatUnits(balanceAfter, 6));
+
+  // Check contract balance
+  const contractBalance = await mockUSDC.balanceOf(DSC_ENGINE_ADDRESS);
+  console.log(
+    "Contract USDC balance:",
+    ethers.utils.formatUnits(contractBalance, 6)
+  );
+
+  console.log("Deposit completed successfully");
 }
 
-// Run the script
-depositStablecoin("10000")
+// Execute the script
+depositMockStablecoin()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("❌ Liquidity provided failed:", error);
+    console.error(error);
     process.exit(1);
   });
