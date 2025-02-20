@@ -10,6 +10,7 @@ import DefiContractAddress from "../../contracts/contract-address.json";
 import { DefiContext } from "../context/DefiContext";
 import { ethers } from "ethers";
 import RepayModal from "../components/modal/RepayModal";
+import WithdrawModal from "../components/modal/WithdrawModel";
 
 const contractAbi = DefiContract.abi;
 const contractAddress = DefiContractAddress.DSCEngine;
@@ -20,13 +21,16 @@ const Page = () => {
     setUserAddress,
     currentState,
     setCurrentState,
+    setTotalLendingTokens,
     totalLendingTokens,
     totalCollateral,
     setTotalCollateral,
     totalLend,
+    setTotalLend,
     totalBorrow,
     tokensToBorrow,
     tokensToLend,
+    setTokensToLend,
   } = useContext(DefiContext);
 
   useEffect(() => {
@@ -60,10 +64,31 @@ const Page = () => {
   useEffect(()=>{
 const fetchCollateral =async()=>{
    const value = await currentState.contract?.getYourCollateralDeposited();
+   const value1 = await currentState.contract?.getYourLendedStablecoin();
+   const value2 = await currentState.contract?.getTotalStablecoinInPool();
+   
+console.log(value2)
    setTotalCollateral((prev)=>{
      var temp = prev[0];
      return [{...temp,available:value}]
   })
+  
+  setTotalLendingTokens((prev)=>{
+   var temp = prev[0];
+   return [{...temp,available:value2}]
+ })
+
+  setTotalLend((prev)=>{
+    var temp = prev[0];
+    return [{...temp,available:value1}]
+ })
+
+
+setTokensToLend((prev)=>{
+  var temp = prev[0];
+  return [{...temp,available:value2}]
+})
+
 }
 fetchCollateral();
   },[currentState])
@@ -76,6 +101,7 @@ fetchCollateral();
       <LendModal />
       <BorrowModal />
       <RepayModal />
+      <WithdrawModal/>
       <div id="modal-root"></div>
 
       {/* Dashboard Header */}
@@ -87,13 +113,13 @@ fetchCollateral();
       <div className="p-6 space-y-6">
         {/* Total Lending Tokens | Total Collateral */}
         <div className="grid grid-cols-2 gap-6">
-          <Container name={"Total Stable Coins"} data={totalLend} />
+          <Container name={"Total Stable Coins"} data={totalLendingTokens} />
           <Container name={"Total Collateral"} data={totalCollateral} />
         </div>
 
         {/* Total Lends | Total Borrows */}
         <div className="grid grid-cols-2 gap-6">
-          <Container name={"Total Lends"} data={totalLend} />
+          <Container name={"Total Lends"} data={totalLend}  apy={"5%"} label1={"Lend"} label2={"Withdraw"} />
           <Container
             name={"Total Borrows"}
             data={totalBorrow}
