@@ -17,6 +17,7 @@ const Page = () => {
   const {
     setAccounts,
     setUserAddress,
+    currentState,
     setCurrentState,
     totalLendingTokens,
     totalCollateral,
@@ -52,6 +53,15 @@ const Page = () => {
     };
     connectWallet();
   }, []);
+
+
+  useEffect(()=>{
+const fetch =async()=>{
+   const value = await currentState.contract?.getCollateralDepositBalance();
+   console.log(value)
+}
+fetch();
+  },[currentState])
 
   // Sections that remain empty until backend integration
 
