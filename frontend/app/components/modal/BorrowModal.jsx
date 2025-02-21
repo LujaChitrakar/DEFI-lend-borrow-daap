@@ -48,7 +48,7 @@ const BorrowModal = () => {
               placeholder="0.00"
               className="bg-transparent flex-grow outline-none text-white placeholder-gray-500"
             />
-            <span className="text-gray-400">USDC</span>
+            <span className="text-gray-400">ETH</span>
           </div>
           <div className="flex justify-between text-sm text-gray-500">
             <span>Available to Borrow: 1500 USDC</span>
