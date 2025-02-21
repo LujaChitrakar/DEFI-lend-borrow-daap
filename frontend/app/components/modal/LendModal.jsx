@@ -8,22 +8,37 @@ import { DefiContext } from "../../context/DefiContext";
 import { X } from "lucide-react";
 
 const LendModal = () => {
-  const { openModalScreen, setOpenModalScreen, currentState } = useContext(DefiContext);
-  const [mounted, setMounted] = useState(false);
-  const [lendValue, setLendValue] = useState();
+  const { openModalScreen, setOpenModalScreen, currentState,setTotalLend,setTotalLendingTokens,
+    setTokensToLend } = useContext(DefiContext);
 
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [lendValue, setLendValue] = useState(0);
 
   const handleLend = async () => {
-    const res = await currentState.contract?.depositStablecoin(10000);
-      // const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin({value:1000000000000000000})          console.log(res)
-      console.log(res)
+
+    try {
+      setOpenModalScreen("LoadingScreen");
+  
+      const res = await currentState.contract?.depositStablecoin(lendValue);
+      
+      if (res) {
+        await res.wait(); //
+  
+        
+        const updatedLendedStablecoin = await currentState.contract?.getYourLendedStablecoin();
+        const updatedLendedStablecoinInPool=  await currentState.contract?.getTotalStablecoinInPool();
+        
+        setTotalLend((prev) => [{ ...prev[0], available: updatedLendedStablecoin }]);
+        setTotalLendingTokens((prev)=>{return [{...prev[0],available:updatedLendedStablecoinInPool}]})   
+      setTokensToLend((prev)=>{return [{...prev[0],available:updatedLendedStablecoinInPool}]})  
+        setOpenModalScreen(null); 
+      }
+    } catch (error) {
+      console.error("Withdrawal failed:", error);
+      setOpenModalScreen(null); 
+    }
   };
 
-  if (!mounted || openModalScreen !== "Lend") return null;
+  if ( openModalScreen !== "Lend") return null;
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -77,7 +92,7 @@ const LendModal = () => {
           className="w-full bg-gray-700 text-gray-500 px-4 py-3 rounded-lg transition"
           onClick={handleLend}
         >
-          Borrow
+          Lend
         </button>
       </div>
     </div>,

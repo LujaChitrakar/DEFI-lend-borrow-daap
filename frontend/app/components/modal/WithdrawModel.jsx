@@ -11,59 +11,45 @@ const WithdrawModal = () => {
   const {
     openModalScreen,
     setOpenModalScreen,
-    contract,
-    userAddress,
-    updateUserData,
+    currentState,
+setTotalLend,
+setTotalLendingTokens,
+setTokensToLend
   } = useContext(DefiContext);
 
-  const [mounted, setMounted] = useState(false);
+ 
   const [amount, setAmount] = useState("");
   const [withdrawableBalance, setWithdrawableBalance] = useState("0");
-  const [loading, setLoading] = useState(false);
+ 
 
-  useEffect(() => {
-    setMounted(true);
-    if (contract && userAddress) {
-      fetchWithdrawableBalance();
+ const handleWithdraw = async () => {
+  try {
+    setOpenModalScreen("LoadingScreen");
+
+    const res = await currentState.contract?.withdrawStablecoin(parseInt(amount));
+    
+    if (res) {
+      await res.wait(); 
+
+      const updatedLendedStablecoin = await currentState.contract?.getYourLendedStablecoin();
+      const updatedLendedStablecoinInPool=  await currentState.contract?.getTotalStablecoinInPool();
+      
+      setTotalLend((prev) => [{ ...prev[0], available: updatedLendedStablecoin }]);
+      setTotalLendingTokens((prev)=>{return [{...prev[0],available:updatedLendedStablecoinInPool}]})   
+      setTokensToLend((prev)=>{return [{...prev[0],available:updatedLendedStablecoinInPool}]})   
+      setOpenModalScreen(null); 
     }
-  }, [contract, userAddress]);
-
-  const fetchWithdrawableBalance = async () => {
-    try {
-      const balance = await contract.getYourLendedStablecoin();
-      setWithdrawableBalance(ethers.formatUnits(balance, 6));
-    } catch (error) {
-      console.error("Error fetching balance:", error);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    if (!amount || !contract) return;
-    setLoading(true);
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-
-      const amountInWei = ethers.parseUnits(amount, 6);
-      const tx = await contract.withdrawStablecoin(amountInWei);
-      await tx.wait();
-
-      await updateUserData(contract, userAddress);
-      setAmount("");
-      setOpenModalScreen(null);
-    } catch (error) {
-      console.error("Withdrawal failed:", error);
-      alert("Withdrawal failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    console.error("Withdrawal failed:", error);
+    setOpenModalScreen(null); 
+  }
+};
 
   const handleMaxClick = () => {
     setAmount(withdrawableBalance);
   };
 
-  if (!mounted || openModalScreen !== "Withdraw") return null;
+  if ( openModalScreen !== "Withdraw") return null;
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-70">
@@ -106,22 +92,15 @@ const WithdrawModal = () => {
 
         <button
           onClick={handleWithdraw}
-          disabled={
-            loading ||
-            !amount ||
-            parseFloat(amount) <= 0 ||
-            parseFloat(amount) > parseFloat(withdrawableBalance)
-          }
+       
           className={`w-full px-4 py-3 rounded-lg transition mt-4 ${
-            loading ||
             !amount ||
-            parseFloat(amount) <= 0 ||
-            parseFloat(amount) > parseFloat(withdrawableBalance)
+            parseFloat(amount) <= 0 
               ? "bg-gray-700 text-gray-500 cursor-not-allowed"
               : "bg-red-500 text-white hover:bg-red-600"
           }`}
         >
-          {loading ? "Processing..." : "Withdraw"}
+        Withdraw
         </button>
       </div>
     </div>,

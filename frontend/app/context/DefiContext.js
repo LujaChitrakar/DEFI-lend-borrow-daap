@@ -33,6 +33,37 @@ export const DefiProvider = ({ children }) => {
 
   const [openModalScreen, setOpenModalScreen] = useState(null);
 
+  useEffect(()=>{
+    const fetchCollateral =async()=>{
+       const value = await currentState.contract?.getYourCollateralDeposited();
+       const value1 = await currentState.contract?.getYourLendedStablecoin();
+       const value2 = await currentState.contract?.getTotalStablecoinInPool();
+       
+    console.log(value2)
+       setTotalCollateral((prev)=>{
+         var temp = prev[0];
+         return [{...temp,available:value}]
+      })
+      
+      setTotalLendingTokens((prev)=>{
+       var temp = prev[0];
+       return [{...temp,available:value2}]
+     })
+    
+      setTotalLend((prev)=>{
+        // var temp = prev[0];
+        return [{...prev[0],available:value1}]
+     })
+    
+    
+    setTokensToLend((prev)=>{
+      var temp = prev[0];
+      return [{...temp,available:value2}]
+    })
+    
+    }
+    fetchCollateral();
+      },[currentState?.contract])
 
   return (
     <DefiContext.Provider

@@ -23,8 +23,9 @@ const Container = ({ name, data = [], label1,label2,apy=null }) => {
               {(label1 || label2) && <th className="py-2 text-left">Action</th>}
             </tr>
           </thead>
+          
           <tbody>
-            {data.map((item, index) =>
+            { data?.map((item, index) =>
               item.message ? null : (
                 <tr key={index} className="border-b border-gray-700">
                   <td className="py-2 flex items-center gap-2">
@@ -42,7 +43,7 @@ const Container = ({ name, data = [], label1,label2,apy=null }) => {
                         {label1}
                       </button>
                   )}
-                                   {label2 && (
+                     {label2 && (
                       <button
                         onClick={() => setOpenModalScreen(label2)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
