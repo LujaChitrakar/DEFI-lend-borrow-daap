@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext, useEffect } from "react";
 import DashboardHeader from "./DashboardHeader";
-import Container from "../components/container/page";
+import Container from "../components/container/Container";
 import LendModal from "../components/modal/LendModal";
 import BorrowModal from "../components/modal/BorrowModal";
 

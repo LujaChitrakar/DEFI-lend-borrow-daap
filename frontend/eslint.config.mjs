@@ -7,8 +7,20 @@ const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
+  recommendedConfig: { plugins: ["eslint:recommended"] },
 });
 
-const eslintConfig = [...compat.extends("next/core-web-vitals")];
-
-export default eslintConfig;
+export default [
+  ...compat.extends("next/core-web-vitals"),
+  {
+    // Add this to avoid the function serialization issue
+    languageOptions: {
+      parser: null, // Let ESLint determine the parser
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  },
+];
