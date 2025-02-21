@@ -38,12 +38,25 @@ export const DefiProvider = ({ children }) => {
        const value = await currentState.contract?.getYourCollateralDeposited();
        const value1 = await currentState.contract?.getYourLendedStablecoin();
        const value2 = await currentState.contract?.getTotalStablecoinInPool();
+
+       const value4 = await currentState.contract?.getYourBorrowedStablecoin();
+       const value3 = await currentState.contract?.s_totalStablecoin();
        
-    console.log(value2)
        setTotalCollateral((prev)=>{
          var temp = prev[0];
          return [{...temp,available:value}]
       })
+
+   
+     setTotalBorrow((prev)=>{
+       var temp = prev[0];
+       return [{...temp,available:value4}]
+    })
+
+    setTokensToBorrow((prev)=>{
+     var temp = prev[0];
+     return [{...temp,available:value3}]})
+
       
       setTotalLendingTokens((prev)=>{
        var temp = prev[0];
