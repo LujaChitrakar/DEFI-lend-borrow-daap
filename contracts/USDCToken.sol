@@ -25,18 +25,6 @@ contract USDCToken is ERC20Burnable, Ownable {
 
     constructor() ERC20("USDC Token", "USDC") Ownable(msg.sender) {}
 
-    function burn(uint256 _amount) public override onlyOwner {
-        uint256 balance = balanceOf(msg.sender);
-        if (_amount <= 0) {
-            revert USDCToken__MustBeMoreThanZero();
-        }
-        if (balance < _amount) {
-            revert USDCToken__BurnAmountExceedsBalance();
-        }
-        super.burn(_amount);
-        emit tokenBurned(msg.sender, _amount);
-    }
-
     function mint(
         address _to,
         uint256 _amount

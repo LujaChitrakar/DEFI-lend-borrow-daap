@@ -211,44 +211,39 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         emit StablecoinBorrowed(msg.sender, stablecoinAmount);
     }
 
-    // function repayLoan(
-    //     uint256 stablecoinAmountToRepay
-    // )
-    //     public
-    //     moreThanZero(stablecoinAmountToRepay)
-    //     nonReentrant
-    //     validStablecoin(USDC_ADDRESS)
-    // {
-    //     i_interest.getAccuredInterest(msg.sender);
-    //     uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
-    //     uint256 principal = s_debt[msg.sender];
-    //     uint256 totalDebt = principal + interestAccured;
+    function repayLoan(
+        uint256 stablecoinAmountToRepay // moreThanZero(stablecoinAmountToRepay)
+        // nonReentrant
+    ) public // validStablecoin(USDC_ADDRESS)
+    {
+        // i_interest.getAccuredInterest(msg.sender);
+        // uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
+        // uint256 principal = s_debt[msg.sender];
+        // uint256 totalDebt = principal + interestAccured;
 
-    //     require(totalDebt > 0, "No outstanding debt");
-    //     require(
-    //         stablecoinAmountToRepay >= totalDebt,
-    //         "Repay amount exceeds debt"
-    //     );
+        // require(totalDebt > 0, "No outstanding debt");
+        // require(
+        //     stablecoinAmountToRepay >= totalDebt,
+        //     "Repay amount exceeds debt"
+        // );
 
-    //     bool success = IERC20(USDC_ADDRESS).transferFrom(
-    //         msg.sender,
-    //         address(this),
-    //         stablecoinAmountToRepay
-    //     );
-    //     if (!success) {
-    //         revert DSCEngine__LoanRepaymentFailed();
-    //     }
-    //     s_debt[msg.sender] = totalDebt > stablecoinAmountToRepay
-    //         ? totalDebt - stablecoinAmountToRepay
-    //         : 0;
-    //     s_totalStablecoin += stablecoinAmountToRepay;
+        bool success = IERC20(USDC_ADDRESS).transferFrom(
+            msg.sender,
+            address(this),
+            stablecoinAmountToRepay
+        );
+        if (!success) {
+            revert DSCEngine__LoanRepaymentFailed();
+        }
+        s_debt[msg.sender] -= stablecoinAmountToRepay;
+        s_totalStablecoin += stablecoinAmountToRepay;
 
-    //     if (s_debt[msg.sender] == 0) {
-    //         i_interest.resetInterest(msg.sender);
-    //     }
+        // if (s_debt[msg.sender] == 0) {
+        //     i_interest.resetInterest(msg.sender);
+        // }
 
-    //     emit LoanRepaid(msg.sender, stablecoinAmountToRepay);
-    // }
+        emit LoanRepaid(msg.sender, stablecoinAmountToRepay);
+    }
 
     function withdrawCollateral(uint256 withdrawAmount) public {
         require(
