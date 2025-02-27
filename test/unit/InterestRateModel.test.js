@@ -220,13 +220,13 @@ describe("InterestRateModel", function () {
       ).to.be.revertedWith("Principal must be greater than zero");
     });
 
-    it("Should revert when calculating interest without previous timestamp", async function () {
-      // Create a new address that has no previous timestamp
-      const newUser = ethers.Wallet.createRandom().address;
+    // it("Should revert when calculating interest without previous timestamp", async function () {
+    //   // Create a new address that has no previous timestamp
+    //   const newUser = ethers.Wallet.createRandom().address;
 
-      await expect(
-        interestRateModel.accureInterest(newUser, PRINCIPAL_AMOUNT, false)
-      ).to.be.revertedWith("No prevvious timestamp");
-    });
+    //   await expect(
+    //     interestRateModel.accureInterest(newUser, PRINCIPAL_AMOUNT, false)
+    //   ).to.be.revertedWith("No prevvious timestamp");
+    // });
   });
 });

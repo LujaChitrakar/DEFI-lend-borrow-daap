@@ -58,7 +58,7 @@ contract PriceOracle is Ownable {
         );
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Invalid price from oracle");
-        return uint256(price) * 1e12;
+        return uint256(price) * 1e10;
     }
 
     function getEthLatestPrice() public view returns (uint256) {

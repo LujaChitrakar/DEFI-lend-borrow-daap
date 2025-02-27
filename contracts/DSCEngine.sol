@@ -92,14 +92,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FOR LENDERS */
 
-    function depositStablecoin(
-        uint256 amountStableCoin
-    )
-        public
-        validStablecoin(USDC_ADDRESS)
-        moreThanZero(amountStableCoin)
-        nonReentrant
-    {
+    function depositStablecoin(uint256 amountStableCoin) public {
         if (s_stableCoinDeposit[msg.sender] > 0) {
             i_interest.accureInterest(
                 msg.sender,
@@ -129,12 +122,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         public
         validStablecoin(USDC_ADDRESS)
         moreThanZero(amountStableCoin)
+        sufficientDeposit(msg.sender, amountStableCoin) // Use the modifier instead
         nonReentrant
     {
-        require(
-            s_stableCoinDeposit[msg.sender] >= amountStableCoin,
-            "Insufficient balance"
-        );
         require(
             s_totalStablecoin >= amountStableCoin,
             "Insufficient protocol liquidity"
@@ -149,8 +139,10 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 accuredInterest = i_interest.getAccuredInterest(msg.sender);
 
         s_stableCoinDeposit[msg.sender] -= amountStableCoin;
-        s_totalStablecoin -= amountStableCoin;
-        i_interest.resetInterest(msg.sender);
+        // Consider updating this to account for the interest being withdrawn
+        s_totalStablecoin -= (amountStableCoin + accuredInterest);
+
+        i_interest.resetInterest(msg.sender); // Only call once
 
         bool success = IERC20(USDC_ADDRESS).transfer(
             msg.sender,
@@ -160,7 +152,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             revert DSCEngine__TransferFailed();
         }
 
-        i_interest.resetInterest(msg.sender);
         emit StableCoinWithdrawed(msg.sender, amountStableCoin);
     }
 
@@ -672,10 +663,10 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Returns the amount of interest accrued on the caller's debt
+     * @notice Returns the amount of interest accured on the caller's debt
      * @return Interest amount in stablecoin units
      */
-    function getYourAccruedDebtInterest() external view returns (uint256) {
+    function getYourAccuredDebtInterest() external view returns (uint256) {
         return i_interest.getAccuredInterest(msg.sender);
     }
 
