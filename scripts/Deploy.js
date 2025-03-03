@@ -6,15 +6,24 @@ async function main() {
 
   const interestRateModel = await ethers.deployContract("InterestRateModel");
   await interestRateModel.waitForDeployment();
-  console.log("Interest Rate Model deployed to:", interestRateModel.target);
+  console.log(
+    "Interest Rate Model deployed to:",
+    interestRateModel.getAddress()
+  );
+
+  const usdc = await ethers.deployContract("USDCToken");
+  await usdc.waitForDeployment();
+  console.log("USDC Token deployed to:", usdc.getAddress());
 
   priceOracle = await ethers.deployContract("PriceOracle");
   await priceOracle.waitForDeployment();
-  console.log("priceOracle deployed to:", priceOracle.target);
+  console.log("priceOracle deployed to:", priceOracle.getAddress());
 
   const dscEngine = await ethers.deployContract("DSCEngine", [
-    priceOracle.target,
-    interestRateModel.target,
+    priceOracle.getAddress(),
+    interestRateModel.getAddress(),
+    ,
+    usdc.getAddress(),
   ]);
   await dscEngine.waitForDeployment();
   console.log("DSCEngine deployed to:", dscEngine.target);

@@ -3,6 +3,8 @@ pragma solidity ^0.8.18;
 // import {LendingToken} from "./LendingToken.sol";
 import {InterestRateModel} from "./InterestRateModel.sol";
 import {PriceOracle} from "./PriceOracle.sol";
+import {USDCToken} from "./USDCToken.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -24,8 +26,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**STATE VARIABLES */
 
-    address public constant USDC_ADDRESS =
-        0x76eFc6B7aDac502DC210f255ea8420672C1355d3;
+    address public immutable USDC_ADDRESS;
+    // =0x76eFc6B7aDac502DC210f255ea8420672C1355d3;
 
     InterestRateModel private immutable i_interest;
     PriceOracle private immutable i_priceOracle;
@@ -63,12 +65,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     );
 
     /**MODIFIERS */
-    modifier validStablecoin(address token) {
-        if (token != USDC_ADDRESS) {
-            revert DSCEngine__NotAllowedToken();
-        }
-        _;
-    }
+    // modifier validStablecoin(address token) {
+    //     if (token != USDC_ADDRESS) {
+    //         revert DSCEngine__NotAllowedToken();
+    //     }
+    //     _;
+    // }
 
     modifier moreThanZero(uint256 amount) {
         if (amount == 0) {
@@ -84,15 +86,24 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     constructor(
         address priceOracleAddress,
-        address InterestRateModelAddress
+        address InterestRateModelAddress,
+        address _usdcAddress
     ) Ownable(msg.sender) {
         i_priceOracle = PriceOracle(priceOracleAddress);
         i_interest = InterestRateModel(InterestRateModelAddress);
+        USDC_ADDRESS = _usdcAddress;
     }
 
     /**FOR LENDERS */
 
-    function depositStablecoin(uint256 amountStableCoin) public {
+    function depositStablecoin(
+        uint256 amountStableCoin
+    )
+        public
+        // validStablecoin(USDC_ADDRESS)
+        moreThanZero(amountStableCoin)
+        nonReentrant
+    {
         if (s_stableCoinDeposit[msg.sender] > 0) {
             i_interest.accureInterest(
                 msg.sender,
@@ -103,14 +114,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         if (s_startTimestamp[msg.sender] == 0) {
             s_startTimestamp[msg.sender] = block.timestamp;
         }
-        bool success = IERC20(USDC_ADDRESS).transferFrom(
+        IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
             address(this),
             amountStableCoin
         );
-        if (!success) {
-            revert DSCEngine__TransferFailed();
-        }
+
         s_stableCoinDeposit[msg.sender] += amountStableCoin;
         s_totalStablecoin += amountStableCoin;
         emit StableCoinDeposited(msg.sender, amountStableCoin);
@@ -120,9 +129,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 amountStableCoin
     )
         public
-        validStablecoin(USDC_ADDRESS)
+        // validStablecoin(USDC_ADDRESS)
         moreThanZero(amountStableCoin)
-        sufficientDeposit(msg.sender, amountStableCoin) // Use the modifier instead
+        sufficientDeposit(msg.sender, amountStableCoin)
         nonReentrant
     {
         require(
@@ -225,7 +234,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         public
         moreThanZero(stablecoinAmount)
         nonReentrant
-        validStablecoin(USDC_ADDRESS)
+    // validStablecoin(USDC_ADDRESS)
     {
         i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
 
@@ -259,7 +268,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         public
         moreThanZero(stablecoinAmountToRepay)
         nonReentrant
-        validStablecoin(USDC_ADDRESS)
+    // validStablecoin(USDC_ADDRESS)
     {
         i_interest.getAccuredInterest(msg.sender);
         uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
@@ -337,7 +346,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     )
         external
         nonReentrant
-        validStablecoin(USDC_ADDRESS)
+        // validStablecoin(USDC_ADDRESS)
         moreThanZero(repayAmount)
     {
         require(s_debt[_borrower] > 0, "Borrower has no debt");
@@ -565,11 +574,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     //     return collateral == WBTC_ADDRESS || collateral == WETH_ADDRESS;
     // }
 
-    function isStablecoinValid(
-        address stablecoin
-    ) external pure returns (bool) {
-        return stablecoin == USDC_ADDRESS;
-    }
+    // function isStablecoinValid(
+    //     address stablecoin
+    // ) external pure returns (bool) {
+    //     return stablecoin == USDC_ADDRESS;
+    // }
 
     function canUserBeLiquidated(address user) external view returns (bool) {
         uint256 healthFactor = this.getHealthFactor(user);
