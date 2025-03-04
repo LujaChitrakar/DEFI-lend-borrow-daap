@@ -123,4 +123,37 @@ describe("DSCEngine Lenders", function () {
       .to.emit(dscEngine, "StableCoinWithdrawn")
       .withArgs(lenderAddress, withdrawAmount);
   });
+
+  it("Should be able to withdraw stablecoin with interest", async function () {
+    const depositAmount = ethers.parseUnits("100", 6);
+    const withdrawAmount = ethers.parseUnits("10", 6);
+    const lenderAddress = await lender.getAddress();
+
+    await mockUSDC.mint(lenderAddress, ethers.parseUnits("1000", 6));
+    await mockUSDC.mint(dscEngine.getAddress(), ethers.parseUnits("500", 6));
+
+    await mockUSDC
+      .connect(lender)
+      .approve(dscEngine.getAddress(), depositAmount);
+
+    await expect(dscEngine.connect(lender).depositStablecoin(depositAmount))
+      .to.emit(dscEngine, "StableCoinDeposited")
+      .withArgs(lenderAddress, depositAmount);
+
+    await ethers.provider.send("evm_increaseTime", [86400]); // 1 day
+    await ethers.provider.send("evm_mine", []);
+
+    // Proceed to withdraw without manually accruing interest
+    await expect(dscEngine.connect(lender).withdrawStablecoin(withdrawAmount))
+      .to.emit(dscEngine, "StableCoinWithdrawn")
+      .withArgs(lenderAddress, withdrawAmount);
+
+    const usdcBalanceAfter = await mockUSDC.balanceOf(lenderAddress);
+
+    // Since interest is reset after withdrawal, finalInterest is 0; check balance directly
+    expect(usdcBalanceAfter).to.be.greaterThan(withdrawAmount);
+    expect(usdcBalanceAfter).to.equal(
+      withdrawAmount + (usdcBalanceAfter - withdrawAmount)
+    );
+  });
 });

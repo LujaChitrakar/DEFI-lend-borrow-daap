@@ -155,8 +155,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             msg.sender,
             amountStableCoin + accuredInterest
         );
-        i_interest.resetInterest(msg.sender); // Only call once
-
+        if (s_stableCoinDeposit[msg.sender] == 0) {
+            i_interest.resetInterest(msg.sender); // Only call once
+        }
         emit StableCoinWithdrawn(msg.sender, amountStableCoin);
     }
 
