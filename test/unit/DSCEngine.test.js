@@ -45,6 +45,7 @@ describe("DSCEngine Lenders", function () {
       .transfer(lender.address, ethers.parseUnits("1000", 6));
   });
 
+  /**DEPOSIT STABLECOIN */
   it("Stablecoin should be more than Zero", async function () {
     await expect(
       dscEngine.connect(lender).depositStablecoin(0)
@@ -90,5 +91,36 @@ describe("DSCEngine Lenders", function () {
     const balance = await dscEngine.getStableCoinBalance(lenderAddress);
     expect(balance).to.equal(depositAmount);
     expect(finalInterest).to.be.greaterThan(initalInterest);
+  });
+
+  /**WITHDRAW STABLECOIN */
+  it("Should revert if amount deposited less than amount to be withdrawn", async function () {
+    const withdrawAmount = ethers.parseUnits("100", 6);
+    const lenderAddress = await lender.getAddress();
+
+    await expect(
+      dscEngine.connect(lender).withdrawStablecoin(withdrawAmount)
+    ).to.be.revertedWith("Not sufficient deposit");
+  });
+
+  it("Should be able to withdraw stablecoin", async function () {
+    const depositAmount = ethers.parseUnits("100", 6);
+    const withdrawAmount = ethers.parseUnits("1", 6);
+    const lenderAddress = await lender.getAddress();
+
+    await mockUSDC.mint(lenderAddress, ethers.parseUnits("1000", 6));
+    await mockUSDC.mint(dscEngine.getAddress(), ethers.parseUnits("500", 6));
+
+    await mockUSDC
+      .connect(lender)
+      .approve(dscEngine.getAddress(), depositAmount);
+
+    await expect(dscEngine.connect(lender).depositStablecoin(depositAmount))
+      .to.emit(dscEngine, "StableCoinDeposited")
+      .withArgs(lenderAddress, depositAmount);
+
+    await expect(dscEngine.connect(lender).withdrawStablecoin(withdrawAmount))
+      .to.emit(dscEngine, "StableCoinWithdrawn")
+      .withArgs(lenderAddress, withdrawAmount);
   });
 });

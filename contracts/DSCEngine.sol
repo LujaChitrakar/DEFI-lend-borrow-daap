@@ -52,7 +52,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     );
     event StableCoinDeposited(address indexed from, uint256 amount);
     event CollateralDeposited(address indexed from, uint256 indexed amount);
-    event StableCoinWithdrawed(address indexed from, uint256 indexed amount);
+    event StableCoinWithdrawn(address indexed from, uint256 indexed amount);
     event StablecoinBorrowed(address indexed from, uint256 indexed amount);
     event LoanRepaid(address indexed from, uint256 indexed amount);
     event tokenMinted(address indexed to, uint256 indexed amount);
@@ -149,19 +149,15 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
         s_stableCoinDeposit[msg.sender] -= amountStableCoin;
         // Consider updating this to account for the interest being withdrawn
-        s_totalStablecoin -= (amountStableCoin + accuredInterest);
+        s_totalStablecoin -= amountStableCoin;
 
-        i_interest.resetInterest(msg.sender); // Only call once
-
-        bool success = IERC20(USDC_ADDRESS).transfer(
+        IERC20(USDC_ADDRESS).transfer(
             msg.sender,
             amountStableCoin + accuredInterest
         );
-        if (!success) {
-            revert DSCEngine__TransferFailed();
-        }
+        i_interest.resetInterest(msg.sender); // Only call once
 
-        emit StableCoinWithdrawed(msg.sender, amountStableCoin);
+        emit StableCoinWithdrawn(msg.sender, amountStableCoin);
     }
 
     // function burn(
