@@ -1,8 +1,7 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.18;
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract InterestRateModel is Ownable {
+contract InterestRateModel {
     /**ERRORS */
     error InterestRateModel__InvalidRate();
 
@@ -18,7 +17,7 @@ contract InterestRateModel is Ownable {
     /**EVENTS */
     event InterestAccured(address indexed user, uint256 interestAmount);
 
-    constructor() Ownable(msg.sender) {}
+    constructor() {}
 
     /** FUNCTIONS **/
 

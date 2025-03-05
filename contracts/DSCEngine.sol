@@ -161,12 +161,6 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         emit StableCoinWithdrawn(msg.sender, amountStableCoin);
     }
 
-    // function burn(
-    //     uint256 amountTokenToBurn
-    // ) public moreThanZero(amountTokenToBurn) {
-    //     _burn(msg.sender, msg.sender, amountTokenToBurn);
-    // }
-
     /**FOR BORROWER */
 
     function depositCollateralAndBorrowStablecoin()

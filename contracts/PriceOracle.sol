@@ -1,9 +1,8 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.18;
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-contract PriceOracle is Ownable {
+contract PriceOracle {
     /**ERRORS */
     error PriceOracle__InvaidToken();
     error PriceOracle__InvaidCollateral();
@@ -22,22 +21,19 @@ contract PriceOracle is Ownable {
     event collateralUpdated(address indexed user, uint256 amount);
 
     /** FUNCTIONS */
-    constructor() Ownable(msg.sender) {}
+    constructor() {}
 
     /**
      * @notice Adds or updates a price feed for a token.
      * @param tokenAddress The token address (e.g., ETH, BTC, USDT, USDC).
      * @param priceFeed The Chainlink price feed address.
      */
-    function setPriceFeed(
-        address tokenAddress,
-        address priceFeed
-    ) external onlyOwner {
+    function setPriceFeed(address tokenAddress, address priceFeed) external {
         s_priceFeeds[tokenAddress] = priceFeed;
         emit PriceFeedUpdated(tokenAddress, priceFeed);
     }
 
-    function setEthPriceFeed(address priceFeed) external onlyOwner {
+    function setEthPriceFeed(address priceFeed) external {
         s_ethPriceFeed = priceFeed;
     }
 
@@ -96,7 +92,7 @@ contract PriceOracle is Ownable {
     @param user The address of the User
     @param amount The amount of collateral
       */
-    function updateCollateral(address user, uint256 amount) external onlyOwner {
+    function updateCollateral(address user, uint256 amount) external {
         s_collateralBalances[user] = amount;
         emit collateralUpdated(user, amount);
     }
