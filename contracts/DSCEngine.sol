@@ -163,34 +163,34 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FOR BORROWER */
 
-    function depositCollateralAndBorrowStablecoin()
-        public
-        payable
-        moreThanZero(msg.value)
-        nonReentrant
-    {
-        depositCollateral();
+    // function depositCollateralAndBorrowStablecoin()
+    //     public
+    //     payable
+    //     moreThanZero(msg.value)
+    //     nonReentrant
+    // {
+    //     depositCollateral();
 
-        uint256 ethValueInUsd = i_priceOracle.getEthValueInUsd(msg.value);
-        uint256 borrowAmountInUsd = ethValueInUsd / 2;
+    //     uint256 ethValueInUsd = i_priceOracle.getEthValueInUsd(msg.value);
+    //     uint256 borrowAmountInUsd = ethValueInUsd / 2;
 
-        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
-        uint256 borrowAmountInUsdc = (borrowAmountInUsd * 1e18) / usdcPrice;
+    //     uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+    //     uint256 borrowAmountInUsdc = (borrowAmountInUsd * 1e18) / usdcPrice;
 
-        borrowAmountInUsdc = borrowAmountInUsdc > s_totalStablecoin
-            ? s_totalStablecoin
-            : borrowAmountInUsdc;
+    //     borrowAmountInUsdc = borrowAmountInUsdc > s_totalStablecoin
+    //         ? s_totalStablecoin
+    //         : borrowAmountInUsdc;
 
-        if (borrowAmountInUsdc > 0) {
-            borrowStablecoin(borrowAmountInUsdc);
-        }
+    //     if (borrowAmountInUsdc > 0) {
+    //         borrowStablecoin(borrowAmountInUsdc);
+    //     }
 
-        emit CollateralDepositedAndBorrowed(
-            msg.sender,
-            msg.value,
-            borrowAmountInUsdc
-        );
-    }
+    //     emit CollateralDepositedAndBorrowed(
+    //         msg.sender,
+    //         msg.value,
+    //         borrowAmountInUsdc
+    //     );
+    // }
 
     function depositCollateral()
         public
@@ -221,34 +221,35 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     function borrowStablecoin(
         uint256 stablecoinAmount
-    )
-        public
-        moreThanZero(stablecoinAmount)
-        nonReentrant
-    // validStablecoin(USDC_ADDRESS)
-    {
-        i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+    ) public moreThanZero(stablecoinAmount) nonReentrant {
+        if (s_debt[msg.sender] > 0) {
+            i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        }
 
         uint256 collateralValue = i_priceOracle.getCollateralValue(msg.sender);
 
-        uint256 requiredCollateral = (stablecoinAmount * COLLATERAL_THRESHOLD) /
-            100;
-        require(requiredCollateral <= collateralValue, "Not enough collateral");
+        uint256 requiredCollateral;
+        unchecked {
+            requiredCollateral =
+                (stablecoinAmount * COLLATERAL_THRESHOLD) /
+                100;
+        }
+        require(collateralValue >= requiredCollateral, "Not enough collateral");
+
+        uint256 contractBalance = IERC20(USDC_ADDRESS).balanceOf(address(this));
+        require(
+            contractBalance >= stablecoinAmount,
+            "Insufficient stablecoin balance"
+        );
 
         s_debt[msg.sender] += stablecoinAmount;
 
-        bool success = IERC20(USDC_ADDRESS).transfer(
-            msg.sender,
-            stablecoinAmount
-        );
-        if (!success) {
-            revert DSCEngine__StablecoinBorrowFailed();
-        }
+        IERC20(USDC_ADDRESS).transfer(msg.sender, stablecoinAmount);
+
         i_priceOracle.updateCollateral(
             msg.sender,
             s_collateralDeposit[msg.sender]
         );
-        s_totalStablecoin -= stablecoinAmount;
 
         emit StablecoinBorrowed(msg.sender, stablecoinAmount);
     }
@@ -272,14 +273,12 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             "Repay amount exceeds debt"
         );
 
-        bool success = IERC20(USDC_ADDRESS).transferFrom(
+        IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
             address(this),
             stablecoinAmountToRepay
         );
-        if (!success) {
-            revert DSCEngine__LoanRepaymentFailed();
-        }
+
         s_debt[msg.sender] = totalDebt > stablecoinAmountToRepay
             ? totalDebt - stablecoinAmountToRepay
             : 0;
