@@ -6,29 +6,26 @@ async function main() {
 
   const interestRateModel = await ethers.deployContract("InterestRateModel");
   await interestRateModel.waitForDeployment();
-  console.log(
-    "Interest Rate Model deployed to:",
-    interestRateModel.getAddress()
-  );
+  const interestRateModelAddress = await interestRateModel.getAddress();
+  console.log("Interest Rate Model deployed to:", interestRateModelAddress);
 
   const usdc = await ethers.deployContract("USDCToken");
   await usdc.waitForDeployment();
-  console.log("USDC Token deployed to:", usdc.getAddress());
+  const usdcAddress = await usdc.getAddress();
+  console.log("USDC Token deployed to:", usdcAddress);
 
-  priceOracle = await ethers.deployContract("PriceOracle");
+  const priceOracle = await ethers.deployContract("PriceOracle");
   await priceOracle.waitForDeployment();
-  console.log("priceOracle deployed to:", priceOracle.getAddress());
+  const priceOracleAddress = await priceOracle.getAddress();
+  console.log("priceOracle deployed to:", priceOracleAddress);
 
   const dscEngine = await ethers.deployContract("DSCEngine", [
-    priceOracle.getAddress(),
-    interestRateModel.getAddress(),
-    ,
-    usdc.getAddress(),
+    priceOracleAddress,
+    interestRateModelAddress,
+    usdcAddress,
   ]);
   await dscEngine.waitForDeployment();
   console.log("DSCEngine deployed to:", dscEngine.target);
-
-  // const [deployer] = await ethers.getSigners();
 
   if (network.name !== "hardhat" && network.name !== "localhost") {
     console.log("Waiting for 5 confirmations before verifying...");
@@ -41,6 +38,7 @@ async function main() {
     await verify(dscEngine.target, [
       priceOracle.target,
       interestRateModel.target,
+      usdcAddress,
     ]);
   }
   console.log("Deployment complete");
