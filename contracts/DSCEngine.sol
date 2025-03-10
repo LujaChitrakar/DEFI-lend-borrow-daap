@@ -163,50 +163,47 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     /**FOR BORROWER */
 
-    // function depositCollateralAndBorrowStablecoin()
-    //     public
-    //     payable
-    //     moreThanZero(msg.value)
-    //     nonReentrant
-    // {
-    //     depositCollateral();
+    function depositCollateralAndBorrowStablecoin()
+        public
+        payable
+        moreThanZero(msg.value)
+        nonReentrant
+    {
+        depositCollateral();
 
-    //     uint256 ethValueInUsd = i_priceOracle.getEthValueInUsd(msg.value);
-    //     uint256 borrowAmountInUsd = ethValueInUsd / 2;
+        uint256 ethValueInUsd = i_priceOracle.getEthValueInUsd(msg.value);
+        uint256 borrowAmountInUsd = ethValueInUsd / 2;
 
-    //     uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
-    //     uint256 borrowAmountInUsdc = (borrowAmountInUsd * 1e18) / usdcPrice;
+        uint256 usdcPrice = i_priceOracle.getLatestPrice(USDC_ADDRESS);
+        uint256 borrowAmountInUsdc = (borrowAmountInUsd * 1e6) / usdcPrice;
 
-    //     borrowAmountInUsdc = borrowAmountInUsdc > s_totalStablecoin
-    //         ? s_totalStablecoin
-    //         : borrowAmountInUsdc;
+        // uint256 usdcBalance = IERC20(USDC_ADDRESS).balanceOf(address(this));
+        // borrowAmountInUsdc = borrowAmountInUsdc > usdcBalance
+        //     ? usdcBalance
+        //     : borrowAmountInUsdc;
 
-    //     if (borrowAmountInUsdc > 0) {
-    //         borrowStablecoin(borrowAmountInUsdc);
-    //     }
+        if (borrowAmountInUsdc > 0) {
+            borrowStablecoin(borrowAmountInUsdc);
+        }
 
-    //     emit CollateralDepositedAndBorrowed(
-    //         msg.sender,
-    //         msg.value,
-    //         borrowAmountInUsdc
-    //     );
-    // }
+        emit CollateralDepositedAndBorrowed(
+            msg.sender,
+            msg.value,
+            borrowAmountInUsdc
+        );
+    }
 
     function depositCollateral()
         public
         payable
         moreThanZero(msg.value)
-        nonReentrant
     // validCollateral(collateralAddress)
     {
-        if (s_collateralDeposit[msg.sender] > 0) {
-            i_interest.accureInterest(
-                msg.sender,
-                s_collateralDeposit[msg.sender],
-                false
-            );
+        if (s_debt[msg.sender] > 0) {
+            i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
         }
-        if (s_startTimestamp[msg.sender] == 0) {
+
+        if (s_debt[msg.sender] > 0 && s_startTimestamp[msg.sender] == 0) {
             s_startTimestamp[msg.sender] = block.timestamp;
         }
 
@@ -221,9 +218,11 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     function borrowStablecoin(
         uint256 stablecoinAmount
-    ) public moreThanZero(stablecoinAmount) nonReentrant {
+    ) public moreThanZero(stablecoinAmount) {
         if (s_debt[msg.sender] > 0) {
             i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        } else {
+            s_startTimestamp[msg.sender] = block.timestamp;
         }
 
         uint256 collateralValue = i_priceOracle.getCollateralValue(msg.sender);
@@ -256,37 +255,32 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     function repayLoan(
         uint256 stablecoinAmountToRepay
-    )
-        public
-        moreThanZero(stablecoinAmountToRepay)
-        nonReentrant
-    // validStablecoin(USDC_ADDRESS)
-    {
-        i_interest.getAccuredInterest(msg.sender);
+    ) public moreThanZero(stablecoinAmountToRepay) nonReentrant {
         uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
         uint256 principal = s_debt[msg.sender];
         uint256 totalDebt = principal + interestAccured;
 
         require(totalDebt > 0, "No outstanding debt");
-        require(
-            stablecoinAmountToRepay >= totalDebt,
-            "Repay amount exceeds debt"
-        );
+
+        uint256 actualRepayAmount = (stablecoinAmountToRepay > totalDebt)
+            ? totalDebt
+            : stablecoinAmountToRepay;
 
         IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
             address(this),
-            stablecoinAmountToRepay
+            actualRepayAmount
         );
 
-        s_debt[msg.sender] = totalDebt > stablecoinAmountToRepay
-            ? totalDebt - stablecoinAmountToRepay
-            : 0;
-        s_totalStablecoin += stablecoinAmountToRepay;
+        s_debt[msg.sender] = totalDebt - actualRepayAmount;
 
         if (s_debt[msg.sender] == 0) {
             i_interest.resetInterest(msg.sender);
+            s_startTimestamp[msg.sender] = 0;
+        } else {
+            i_interest.accureInterest(msg.sender, s_debt[msg.sender], true);
         }
+        s_totalStablecoin += actualRepayAmount;
 
         i_priceOracle.updateCollateral(
             msg.sender,

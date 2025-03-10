@@ -41,10 +41,6 @@ describe("InterestRateModel", function () {
   });
 
   describe("Deployment", function () {
-    // it("Should set the right owner", async function () {
-    //   expect(await interestRateModel.owner()).to.equal(owner.address);
-    // });
-
     it("Should set the correct constants", async function () {
       expect(await interestRateModel.SECONDS_IN_YEAR()).to.equal(
         SECONDS_IN_YEAR

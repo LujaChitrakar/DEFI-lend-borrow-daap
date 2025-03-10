@@ -4,10 +4,14 @@ pragma solidity ^0.8.18;
 contract MockPriceOracle {
     mapping(address => uint256) private prices;
     uint256 private ethPrice;
+    uint256 private usdcPrice;
     mapping(address => uint256) private collateralValues;
 
     function setEthPrice(uint256 _price) external {
         ethPrice = _price;
+    }
+    function setUsdcPrice(uint256 _price) external {
+        usdcPrice = _price;
     }
 
     function setTokenPrice(address token, uint256 price) external {
@@ -20,6 +24,9 @@ contract MockPriceOracle {
 
     function getEthLatestPrice() external view returns (uint256) {
         return ethPrice;
+    }
+    function getUsdcLatestPrice() external view returns (uint256) {
+        return usdcPrice;
     }
 
     function getEthValueInUsd(
