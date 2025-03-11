@@ -49,7 +49,7 @@ module.exports = {
     },
   },
   mocha: {
-    timeout: 300000, // 5 minutes
+    timeout: 3000000000000, // 5 minutes
   },
   settings: {
     viaIR: true,

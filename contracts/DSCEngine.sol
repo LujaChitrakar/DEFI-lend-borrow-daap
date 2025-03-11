@@ -199,13 +199,13 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         moreThanZero(msg.value)
     // validCollateral(collateralAddress)
     {
-        if (s_debt[msg.sender] > 0) {
-            i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
-        }
+        // if (s_debt[msg.sender] > 0) {
+        //     i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        // }
 
-        if (s_debt[msg.sender] > 0 && s_startTimestamp[msg.sender] == 0) {
-            s_startTimestamp[msg.sender] = block.timestamp;
-        }
+        // if (s_debt[msg.sender] > 0 && s_startTimestamp[msg.sender] == 0) {
+        //     s_startTimestamp[msg.sender] = block.timestamp;
+        // }
 
         uint256 oldCollateral = s_collateralDeposit[msg.sender];
         uint256 newCollateral = oldCollateral + msg.value;
@@ -242,6 +242,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         );
 
         s_debt[msg.sender] += stablecoinAmount;
+        i_interest.accureInterest(msg.sender, stablecoinAmount, false);
 
         IERC20(USDC_ADDRESS).transfer(msg.sender, stablecoinAmount);
 
@@ -256,9 +257,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     function repayLoan(
         uint256 stablecoinAmountToRepay
     ) public moreThanZero(stablecoinAmountToRepay) nonReentrant {
-        uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);
+        uint256 interestAccrued = i_interest.getAccuredInterest(msg.sender);
         uint256 principal = s_debt[msg.sender];
-        uint256 totalDebt = principal + interestAccured;
+        uint256 totalDebt = principal + interestAccrued;
 
         require(totalDebt > 0, "No outstanding debt");
 
@@ -272,7 +273,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             actualRepayAmount
         );
 
-        s_debt[msg.sender] = totalDebt - actualRepayAmount;
+        s_debt[msg.sender] = principal - stablecoinAmountToRepay;
 
         if (s_debt[msg.sender] == 0) {
             i_interest.resetInterest(msg.sender);
@@ -296,30 +297,34 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 totalDeposit = s_collateralDeposit[msg.sender];
         require(
             totalDeposit >= amountToWithdraw,
-            " Amount exceeds total collateral deposited"
+            "Exceeds deposited collateral"
         );
 
-        i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        if (s_debt[msg.sender] > 0) {
+            i_interest.accureInterest(msg.sender, s_debt[msg.sender], false);
+        }
 
         uint256 newCollateral = totalDeposit - amountToWithdraw;
-
         uint256 debtValue = getDebtValue(msg.sender);
-        uint256 collateralValue = getCollateralValue(newCollateral);
-        require(
-            getCollateralizationThresholdValid(collateralValue, debtValue),
-            "Collateral threshold breached"
-        );
+
+        if (debtValue > 0) {
+            uint256 collateralValue = getCollateralValue(newCollateral);
+            require(
+                getCollateralizationThresholdValid(collateralValue, debtValue),
+                "Collateral threshold breached"
+            );
+        }
 
         s_collateralDeposit[msg.sender] = newCollateral;
 
-        i_priceOracle.updateCollateral(msg.sender, newCollateral);
-
+        // Transfer ETH first if oracle depends on contract balance
         (bool success, ) = payable(msg.sender).call{value: amountToWithdraw}(
             ""
         );
-        if (!success) {
-            revert DSCEngine__TransferFailed();
-        }
+        require(success, "Transfer failed");
+
+        // Update oracle after transfer
+        i_priceOracle.updateCollateral(msg.sender, newCollateral);
 
         emit CollateralWithdrawn(msg.sender, amountToWithdraw);
     }
@@ -327,12 +332,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     function liquidate(
         address _borrower,
         uint256 repayAmount
-    )
-        external
-        nonReentrant
-        // validStablecoin(USDC_ADDRESS)
-        moreThanZero(repayAmount)
-    {
+    ) external nonReentrant moreThanZero(repayAmount) {
         require(s_debt[_borrower] > 0, "Borrower has no debt");
 
         require(
@@ -409,9 +409,10 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             USDC_ADDRESS,
             repayAmount
         );
+        uint256 price = i_priceOracle.getEthLatestPrice();
         uint256 seizeAmountInUsd = (repayAmountInUsd *
             (100 + liquidationBonus)) / 100;
-
+        uint256 seizeValue = (repayAmount * liquidationBonus) / 100;
         uint256 ethPricePerUnit = i_priceOracle.getEthLatestPrice();
         seizeAmountInEth = (seizeAmountInUsd * 1e18) / ethPricePerUnit;
 
@@ -419,7 +420,7 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             seizeAmountInUsd <= s_collateralDeposit[_borrower],
             "Not enough collateral to seize"
         );
-        return (seizeAmountInEth);
+        return (seizeValue * 1e18) / price;
     }
 
     function _isUserUnderCollaterized(
@@ -428,10 +429,9 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         uint256 totalCollateralValue = getAccountCollateralValueInUSD(user);
         uint256 totalDebt = getTotalDebtOfAccount(user);
         if (totalDebt == 0) return false;
-        uint256 healthFactor = (totalCollateralValue *
-            PRECISION *
-            COLLATERAL_THRESHOLD) / (totalDebt * 100);
-        return healthFactor < PRECISION;
+        uint256 healthFactor = (totalCollateralValue * PRECISION) /
+            (totalDebt * COLLATERAL_THRESHOLD);
+        return healthFactor < (PRECISION * COLLATERAL_THRESHOLD) / 100;
     }
 
     function _executeLiquidation(
@@ -443,24 +443,32 @@ contract DSCEngine is ReentrancyGuard, Ownable {
             _isUserUnderCollaterized(_borrower),
             "User is not undercollaterized"
         );
+        require(
+            IERC20(USDC_ADDRESS).allowance(msg.sender, address(this)) >=
+                repayAmount,
+            "Insufficient allowance"
+        );
+        require(
+            IERC20(USDC_ADDRESS).balanceOf(msg.sender) >= repayAmount,
+            "Insufficient balance"
+        );
 
+        i_interest.accureInterest(_borrower, s_debt[_borrower], false);
         require(
             seizeAmountInEth <= s_collateralDeposit[_borrower],
             "Not Enough collateral"
         );
-        i_interest.accureInterest(_borrower, s_debt[_borrower], false);
 
-        bool success = IERC20(USDC_ADDRESS).transferFrom(
+        s_debt[_borrower] -= repayAmount;
+        s_collateralDeposit[_borrower] -= seizeAmountInEth;
+
+        IERC20(USDC_ADDRESS).transferFrom(
             msg.sender,
             address(this),
             repayAmount
         );
-        if (!success) {
-            revert DSCEngine__LiquidationFailed();
-        }
+        payable(msg.sender).transfer(seizeAmountInEth);
 
-        s_debt[_borrower] -= repayAmount;
-        s_collateralDeposit[_borrower] -= seizeAmountInEth;
         s_totalStablecoin += repayAmount;
 
         if (s_debt[_borrower] == 0) {

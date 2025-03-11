@@ -143,20 +143,13 @@ describe("DSCEngine Borrower", function () {
     expect(initialInterest).to.equal(0);
 
     dscEngine.connect(borrower).depositCollateral({ value: depositAmount });
+    await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
 
     await ethers.provider.send("evm_increaseTime", [86400]); // 1 day = 86400 seconds
     await ethers.provider.send("evm_mine", []);
 
-    await interestRateModel.accureInterest(
-      borrowerAddress,
-      borrowAmount,
-      false
-    );
-
     const finalInterest = await dscEngine.getAccuredInterest(borrowerAddress);
     expect(finalInterest).to.be.greaterThan(initialInterest);
-
-    await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
   });
 
   /**DEPOSIT COLLATERAL AND BORROW STABLECOIN */
@@ -229,25 +222,80 @@ describe("DSCEngine Borrower", function () {
   it("Should handle repayment with interest", async function () {
     const depositAmount = ethers.parseEther("1");
     const borrowAmount = ethers.parseUnits("10", 6);
+    const repayAmount = ethers.parseUnits("10", 6);
     const borrowerAddress = await borrower.getAddress();
+
     await dscEngine
       .connect(borrower)
       .depositCollateral({ value: depositAmount });
     await dscEngine.connect(borrower).borrowStablecoin(borrowAmount);
 
+    // Increase time by 2 days to ensure non-zero interest
     await ethers.provider.send("evm_increaseTime", [86400]);
     await ethers.provider.send("evm_mine", []);
+
+    const totalDebt = await mockUSDC.balanceOf(borrowerAddress);
+
+    expect(totalDebt).to.be.gt(borrowAmount);
+
+    await mockUSDC
+      .connect(borrower)
+      .approve(dscEngine.getAddress(), repayAmount);
+    await dscEngine.connect(borrower).repayLoan(repayAmount);
 
     const interest = await interestRateModel.getAccuredInterest(
       borrowerAddress
     );
-    console.log("Accrued Interest:", interest.toString());
+    expect(interest).to.equal(0);
+  });
 
-    const totalDebt = await dscEngine.getDebtBalance(borrowerAddress);
-    expect(totalDebt).to.be.greaterThan(borrowAmount);
+  /**WITHDRAW COLLATERAL */
+  it("Withdraw amount should be more than zero", async function () {
+    await expect(dscEngine.withdrawCollateral(0)).to.be.revertedWithCustomError(
+      dscEngine,
+      "DSCEngine__NeedsMoreThanZero"
+    );
+  });
 
-    await mockUSDC.connect(borrower).approve(dscEngine.getAddress(), totalDebt);
+  it("Should be able to withdraw full collateral", async function () {
+    const depositCollateralAmount = ethers.parseEther("1");
+    const withdrawCollateralAmount = ethers.parseEther("1");
+    const borrowerAddress = await borrower.getAddress();
 
-    await dscEngine.connect(borrower).repayLoan(totalDebt);
+    await dscEngine
+      .connect(borrower)
+      .depositCollateral({ value: depositCollateralAmount });
+
+    await expect(
+      dscEngine.connect(borrower).withdrawCollateral(withdrawCollateralAmount)
+    )
+      .to.emit(dscEngine, "CollateralWithdrawn")
+      .withArgs(borrowerAddress, withdrawCollateralAmount);
+
+    const finalDeposit = await dscEngine.getCollateralDepositBalance(
+      borrowerAddress
+    );
+
+    expect(finalDeposit).to.equal(0);
+  });
+
+  it("Should be able to withdraw partial collateral", async function () {
+    const depositAmount = ethers.parseEther("2");
+    const withdrawAmount = ethers.parseEther("1");
+    const borrowerAddress = await borrower.getAddress();
+
+    await dscEngine
+      .connect(borrower)
+      .depositCollateral({ value: depositAmount });
+
+    await expect(dscEngine.connect(borrower).withdrawCollateral(withdrawAmount))
+      .to.emit(dscEngine, "CollateralWithdrawn")
+      .withArgs(borrowerAddress, withdrawAmount);
+
+    const finalDeposit = await dscEngine.getCollateralDepositBalance(
+      borrowerAddress
+    );
+
+    expect(finalDeposit).to.be.greaterThan(0);
   });
 });
