@@ -53,12 +53,12 @@ export const DefiProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchCollateral = async () => {
-      const value = await currentState.contract?.getYourCollateralDeposited();
-      const value1 = await currentState.contract?.getYourLendedStablecoin();
-      const value2 = await currentState.contract?.getTotalStablecoinInPool();
+      const value = await currentState.contract?.getUserCollateral();
+      const value1 = await currentState.contract?.getLendAmount();
+      const value2 = await currentState.contract?.getTotalLent();
 
-      const value4 = await currentState.contract?.getYourBorrowedStablecoin();
-      const value3 = await currentState.contract?.s_totalStablecoin();
+      const value4 = await currentState.contract?.getBorrowAmount();
+
 
       setTotalCollateral((prev) => {
         var temp = prev[0];
@@ -72,7 +72,7 @@ export const DefiProvider = ({ children }) => {
 
       setTokensToBorrow((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value3 }];
+        return [{ ...temp, available: value2 }];
       });
 
       setTotalLendingTokens((prev) => {

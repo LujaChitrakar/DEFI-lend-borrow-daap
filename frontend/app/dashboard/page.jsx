@@ -5,7 +5,7 @@ import Container from "../components/container/Container";
 import LendModal from "../components/modal/LendModal";
 import BorrowModal from "../components/modal/BorrowModal";
 
-import DefiContract from "../../contracts/DSCEngine.json";
+import DefiContract from "../../contracts/DeFiLending.json";
 import DefiContractAddress from "../../contracts/contract-address.json";
 import { DefiContext } from "../context/DefiContext";
 import { ethers } from "ethers";
@@ -14,7 +14,8 @@ import WithdrawModal from "../components/modal/WithdrawModel";
 import LoadingModal from "../components/modal/LoadingModal";
 
 const contractAbi = DefiContract.abi;
-const contractAddress = DefiContractAddress.DSCEngine;
+const contractAddress = DefiContractAddress.DeFiLending;
+
 const Page = () => {
   const {
     setAccounts,

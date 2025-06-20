@@ -68,14 +68,14 @@ contract DeFiLending {
         return address(this).balance;
     }
 
-    function getUserCollateral(address user) external view returns (uint256) {
-        return depositCollateralAmount[user];
+    function getUserCollateral() external view returns (uint256) {
+        return depositCollateralAmount[msg.sender];
     }
-    function getLendAmount(address user) external view returns (uint256) {
-        return lentAmount[user];
+    function getLendAmount() external view returns (uint256) {
+        return lentAmount[msg.sender];
     }
-    function getBorrowAmount(address user) external view returns (uint256) {
-        return borrowedAmount[user];
+    function getBorrowAmount() external view returns (uint256) {
+        return borrowedAmount[msg.sender];
     }
 
     function getTotalLent() external view returns (uint256) {
