@@ -1,8 +1,8 @@
 "use client";
 import { useState, createContext, useEffect } from "react";
+import { ethers } from "ethers";
 import contractAddress from "../../contracts/contract-address.json";
 import DSCEngineArtifact from "../../contracts/DSCEngine.json";
-import { BrowserProvider, Contract } from "ethers";
 
 export const DefiContext = createContext();
 
@@ -52,28 +52,46 @@ export const DefiProvider = ({ children }) => {
   const [openModalScreen, setOpenModalScreen] = useState(null);
 
   useEffect(() => {
-    const initContract = async () => {
-      try {
-        const provider = new BrowserProvider.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
+    const fetchCollateral = async () => {
+      const value = await currentState.contract?.getYourCollateralDeposited();
+      const value1 = await currentState.contract?.getYourLendedStablecoin();
+      const value2 = await currentState.contract?.getTotalStablecoinInPool();
 
-        const contract = new ethers.Contract(
-          contractAddress.DSCEngine, // use correct key if different
-          DSCEngineArtifact.abi,
-          signer
-        );
+      const value4 = await currentState.contract?.getYourBorrowedStablecoin();
+      const value3 = await currentState.contract?.s_totalStablecoin();
 
-        setCurrentState({ contract }); // ✅ this sets it properly
-        const address = await signer.getAddress();
-        setUserAddress(address);
-      } catch (error) {
-        console.error("Error initializing contract:", error);
-      }
+      setTotalCollateral((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value }];
+      });
+
+      setTotalBorrow((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value4 }];
+      });
+
+      setTokensToBorrow((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value3 }];
+      });
+
+      setTotalLendingTokens((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value2 }];
+      });
+
+      setTotalLend((prev) => {
+        // var temp = prev[0];
+        return [{ ...prev[0], available: value1 }];
+      });
+
+      setTokensToLend((prev) => {
+        var temp = prev[0];
+        return [{ ...temp, available: value2 }];
+      });
     };
-
-    initContract();
-  }, []);
+    fetchCollateral();
+  }, [currentState?.contract]);
 
   return (
     <DefiContext.Provider
