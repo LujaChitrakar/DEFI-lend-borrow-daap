@@ -2,11 +2,11 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
-console.log("SEPOLIA_RPC_URL:", process.env.SEPOLIA_RPC_URL);
-console.log(
-  "SEPOLIA_PRIVATE_KEY:",
-  process.env.SEPOLIA_PRIVATE_KEY ? "Loaded" : "Not Loaded"
-);
+// console.log("SEPOLIA_RPC_URL:", process.env.SEPOLIA_RPC_URL);
+// console.log(
+//   "SEPOLIA_PRIVATE_KEY:",
+//   process.env.SEPOLIA_PRIVATE_KEY ? "Loaded" : "Not Loaded"
+// );
 
 module.exports = {
   solidity: {

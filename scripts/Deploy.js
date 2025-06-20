@@ -1,41 +1,26 @@
-const { ethers, network } = require("hardhat");
+// scripts/deploy.js
+const { ethers, network, artifacts, run } = require("hardhat");
 const path = require("path");
 
 async function main() {
   console.log("Starting deployment...");
 
-  const interestRateModel = await ethers.deployContract("InterestRateModel");
-  await interestRateModel.waitForDeployment();
-  console.log("Interest Rate Model deployed to:", interestRateModel.target);
+  // Deploy the DeFiLending contract
+  const defiLending = await ethers.deployContract("DeFiLending");
+  await defiLending.waitForDeployment();
+  console.log("DeFiLending deployed to:", defiLending.target);
 
-  priceOracle = await ethers.deployContract("PriceOracle");
-  await priceOracle.waitForDeployment();
-  console.log("priceOracle deployed to:", priceOracle.target);
-
-  const dscEngine = await ethers.deployContract("DSCEngine", [
-    priceOracle.target,
-    interestRateModel.target,
-  ]);
-  await dscEngine.waitForDeployment();
-  console.log("DSCEngine deployed to:", dscEngine.target);
-
-  // const [deployer] = await ethers.getSigners();
-
+  // If on a live network, verify
   if (network.name !== "hardhat" && network.name !== "localhost") {
     console.log("Waiting for 5 confirmations before verifying...");
-
-    await dscEngine.deploymentTransaction().wait(5); // Wait for 5 confirmations
+    await defiLending.deploymentTransaction().wait(5);
     console.log("Verifying contract...");
 
-    await verify(priceOracle.target, []);
-    await verify(interestRateModel.target, []);
-    await verify(dscEngine.target, [
-      priceOracle.target,
-      interestRateModel.target,
-    ]);
+    await verify(defiLending.target, []);
   }
+
   console.log("Deployment complete");
-  saveFrontendFiles(dscEngine.target);
+  saveFrontendFiles(defiLending.target);
 }
 
 async function verify(contractAddress, args) {
@@ -46,37 +31,37 @@ async function verify(contractAddress, args) {
     });
   } catch (e) {
     if (e.message.toLowerCase().includes("already verified")) {
-      console.log("already verified");
+      console.log("Already verified");
     } else {
-      console.log(e);
+      console.error(e);
     }
   }
 }
 
-function saveFrontendFiles(contract_address) {
+function saveFrontendFiles(contractAddress) {
   const fs = require("fs");
   const contractsDir = path.join(__dirname, "..", "frontend", "contracts");
 
   if (!fs.existsSync(contractsDir)) {
-    fs.mkdirSync(contractsDir);
+    fs.mkdirSync(contractsDir, { recursive: true });
   }
 
   fs.writeFileSync(
     path.join(contractsDir, "contract-address.json"),
-    JSON.stringify({ DSCEngine: contract_address }, undefined, 2)
+    JSON.stringify({ DeFiLending: contractAddress }, undefined, 2)
   );
 
-  const DefiArtifact = artifacts.readArtifactSync("DSCEngine");
+  const contractArtifact = artifacts.readArtifactSync("DeFiLending");
 
   fs.writeFileSync(
-    path.join(contractsDir, "DSCEngine.json"),
-    JSON.stringify(DefiArtifact, null, 2)
+    path.join(contractsDir, "DeFiLending.json"),
+    JSON.stringify(contractArtifact, null, 2)
   );
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error("Deployment failed:", error);
     process.exit(1);
   });

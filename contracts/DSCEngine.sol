@@ -65,24 +65,24 @@ contract DSCEngine is ReentrancyGuard, Ownable {
     );
 
     /**MODIFIERS */
-    modifier validStablecoin(address token) {
-        if (token != USDC_ADDRESS) {
-            revert DSCEngine__NotAllowedToken();
-        }
-        _;
-    }
+    // modifier validStablecoin(address token) {
+    //     if (token != USDC_ADDRESS) {
+    //         revert DSCEngine__NotAllowedToken();
+    //     }
+    //     _;
+    // }
 
-    modifier moreThanZero(uint256 amount) {
-        if (amount == 0) {
-            revert DSCEngine__NeedsMoreThanZero();
-        }
-        _;
-    }
+    // modifier moreThanZero(uint256 amount) {
+    //     if (amount == 0) {
+    //         revert DSCEngine__NeedsMoreThanZero();
+    //     }
+    //     _;
+    // }
 
-    modifier sufficientDeposit(address user, uint256 amount) {
-        require(s_stableCoinDeposit[user] >= amount, "Not sufficient deposit");
-        _;
-    }
+    // modifier sufficientDeposit(address user, uint256 amount) {
+    //     require(s_stableCoinDeposit[user] >= amount, "Not sufficient deposit");
+    //     _;
+    // }
 
     constructor(
         address priceOracleAddress,
@@ -105,15 +105,15 @@ contract DSCEngine is ReentrancyGuard, Ownable {
         s_stableCoinDeposit[msg.sender] += amountStableCoin;
         s_totalStablecoin += amountStableCoin;
 
-        emit StableCoinDeposited(msg.sender, amountStableCoin); // Missing event for deposits
+        // emit StableCoinDeposited(msg.sender, amountStableCoin); // Missing event for deposits
     }
 
     function withdrawStablecoin(uint256 amountStableCoin) public {
-        require(amountStableCoin > 0, "Amount must be greater than zero");
-        require(
-            s_stableCoinDeposit[msg.sender] >= amountStableCoin,
-            "Insufficient balance"
-        );
+        // require(amountStableCoin > 0, "Amount must be greater than zero");
+        // require(
+        //     s_stableCoinDeposit[msg.sender] >= amountStableCoin,
+        //     "Insufficient balance"
+        // );
 
         // Update state before external call
         s_stableCoinDeposit[msg.sender] -= amountStableCoin;
@@ -213,8 +213,8 @@ contract DSCEngine is ReentrancyGuard, Ownable {
 
     function repayLoan(
         uint256 stablecoinAmountToRepay // moreThanZero(stablecoinAmountToRepay)
-        // nonReentrant
-    ) public // validStablecoin(USDC_ADDRESS)
+        // validStablecoin(USDC_ADDRESS)
+    ) public // nonReentrant
     {
         // i_interest.getAccuredInterest(msg.sender);
         // uint256 interestAccured = i_interest.getAccuredInterest(msg.sender);

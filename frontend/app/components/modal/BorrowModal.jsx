@@ -20,7 +20,6 @@ const BorrowModal = () => {
       await currentState.contract?.depositCollateralAndBorrowStablecoin({
         value: ethers.parseEther("0.00015"),
       });
-    // const res= await  currentState.contract?.depositCollateralAndBorrowStablecoin({value:1000000000000000000})          console.log(res)
   };
 
   if (!mounted || openModalScreen !== "Borrow") return null;
