@@ -59,7 +59,6 @@ export const DefiProvider = ({ children }) => {
 
       const value4 = await currentState.contract?.getBorrowAmount();
 
-
       setTotalCollateral((prev) => {
         var temp = prev[0];
         return [{ ...temp, available: value }];
