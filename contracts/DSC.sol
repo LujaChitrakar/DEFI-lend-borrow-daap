@@ -36,6 +36,18 @@ contract DeFiLending {
         require(msg.value > 0, "Must deposit more than 0");
         depositCollateralAmount[msg.sender] += msg.value;
     }
+    // deposit WETH to the contract
+    function withdrawCollateral(uint256 amount) external payable {
+        require(amount > 0, "Must deposit more than 0");
+        require(
+            depositCollateralAmount[msg.sender] >= amount,
+            "No enough collateral"
+        );
+        depositCollateralAmount[msg.sender] -= amount;
+
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        require(sent, "Withdrawal of collateral failed");
+    }
 
     // Borrow ETH from the contract (from the totalLent pool)
     function borrow(uint256 amount) external {
@@ -44,9 +56,13 @@ contract DeFiLending {
             address(this).balance - totalBorrowed >= amount,
             "Not enough liquidity"
         );
+        require(
+            depositCollateralAmount[msg.sender] > amount,
+            "Not enough collateral"
+        );
         borrowedAmount[msg.sender] += amount;
         totalBorrowed += amount;
-
+        depositCollateralAmount[msg.sender] -= amount;
         (bool sent, ) = payable(msg.sender).call{value: amount}("");
         require(sent, "Borrow failed");
     }
