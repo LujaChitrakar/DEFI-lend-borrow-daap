@@ -13,7 +13,7 @@ const Header = () => {
 
   const handleLaunchApp = () => {
     if (isMounted) {
-      router.push("/connect-wallet"); 
+      router.push("/connect-wallet");
     }
   };
 
@@ -26,23 +26,26 @@ const Header = () => {
           <div className="particle particle-2"></div>
           <div className="particle particle-3"></div>
         </div>
-        <Image
+        {/* <Image
           src="/logo.png"
           alt="LendWise Logo"
           width={140}
           height={45}
           className="object-contain relative z-10 transition-transform duration-300 ease-in-out hover:scale-110 logo-bright"
-        />
+        /> */}
+        <h1 className="font-semibold text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-600 animate-gradient-x">
+          LendWise
+        </h1>
       </div>
 
       {/* Button Section */}
       <div className="flex items-center gap-4">
-      <button 
-  className="bg-gradient-to-r from-[#00C6FF] to-[#0072FF] px-7 py-3.5 rounded-full text-white font-semibold text-base hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
-  onClick={handleLaunchApp}
->
-  🚀 Launch App
-</button>
+        <button
+          className="bg-gradient-to-r from-[#00c8ff70] to-[#00326f] px-7 py-3.5 rounded-full text-white font-semibold text-base hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+          onClick={handleLaunchApp}
+        >
+          Launch App
+        </button>
       </div>
 
       <style jsx>{`

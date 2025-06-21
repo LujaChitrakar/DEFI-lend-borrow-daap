@@ -685,7 +685,7 @@ function App() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  DeFi Lending Protocol
+                  LendWise Lending Protocol
                 </h1>
                 <p className="text-gray-400 text-sm">
                   Decentralized lending and borrowing
@@ -717,7 +717,7 @@ function App() {
                     Total Lent
                   </p>
                   <p className="text-3xl font-bold text-blue-400">
-                    {stats.totalLent || "0.0"} ETH
+                    {stats.totalLent || "0.0"} USDC
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
@@ -732,7 +732,7 @@ function App() {
                     Total Borrowed
                   </p>
                   <p className="text-3xl font-bold text-purple-400">
-                    {stats.totalBorrowed} ETH
+                    {stats.totalBorrowed} USDC
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
@@ -749,13 +749,13 @@ function App() {
           <div className="space-y-6">
             <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2 text-green-400">
-                <TrendingUp className="w-5 h-5" />
+                {/* <TrendingUp className="w-5 h-5" /> */}
                 <span>Your Lending Position</span>
               </h3>
               <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
                 <p className="text-green-300 text-sm">Amount Lent</p>
                 <p className="text-2xl font-bold text-green-400">
-                  {stats.userLend} ETH
+                  {stats.userLend} USDC
                 </p>
               </div>
             </div>
@@ -767,7 +767,7 @@ function App() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Amount (ETH)
+                    Amount (USDC)
                   </label>
                   <input
                     type="number"
@@ -783,14 +783,14 @@ function App() {
                     disabled={loading || !lendAmount}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                   >
-                    {loading ? "Processing..." : "Lend ETH"}
+                    {loading ? "Processing..." : "Lend USDC"}
                   </button>
                   <button
                     onClick={() => callFunction("withdraw", lendAmount)}
                     disabled={loading || !lendAmount}
                     className="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200"
                   >
-                    {loading ? "Processing..." : "Withdraw"}
+                    {loading ? "Processing..." : "Withdraw USDC"}
                   </button>
                 </div>
               </div>
@@ -808,13 +808,13 @@ function App() {
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
                   <p className="text-purple-300 text-sm">Borrowed</p>
                   <p className="text-xl font-bold text-purple-400">
-                    {stats.userBorrow} ETH
+                    {stats.userBorrow} USDC
                   </p>
                 </div>
                 <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
                   <p className="text-orange-300 text-sm">Collateral</p>
                   <p className="text-xl font-bold text-orange-400">
-                    {stats.userCollateral} ETH
+                    {stats.userCollateral} WETH
                   </p>
                 </div>
               </div>
@@ -828,7 +828,7 @@ function App() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Collateral Amount (ETH)
+                    Collateral Amount (WETH)
                   </label>
                   <input
                     type="number"
@@ -846,7 +846,7 @@ function App() {
                     disabled={loading || !collateralAmount}
                     className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                   >
-                    {loading ? "Processing..." : "Deposit Collateral"}
+                    {loading ? "Processing..." : "Deposit Collateral WETH"}
                   </button>
                   <button
                     onClick={() =>
@@ -855,7 +855,7 @@ function App() {
                     disabled={loading || !collateralAmount}
                     className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                   >
-                    {loading ? "Processing..." : "Withdraw Collateral"}
+                    {loading ? "Processing..." : "Withdraw Collateral WETH"}
                   </button>
                 </div>
               </div>
@@ -868,7 +868,7 @@ function App() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Amount (ETH)
+                    Amount (USDC)
                   </label>
                   <input
                     type="number"
@@ -884,14 +884,14 @@ function App() {
                     disabled={loading || !borrowAmount}
                     className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                   >
-                    {loading ? "Processing..." : "Borrow ETH"}
+                    {loading ? "Processing..." : "Borrow USDC"}
                   </button>
                   <button
                     onClick={() => sendETH("repay", borrowAmount)}
                     disabled={loading || !borrowAmount}
                     className="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200"
                   >
-                    {loading ? "Processing..." : "Repay"}
+                    {loading ? "Processing..." : "Repay USDC"}
                   </button>
                 </div>
               </div>
@@ -900,7 +900,7 @@ function App() {
         </div>
 
         {/* Contract Balance */}
-        <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6">
+        {/* <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
@@ -914,7 +914,7 @@ function App() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Toast Container */}
