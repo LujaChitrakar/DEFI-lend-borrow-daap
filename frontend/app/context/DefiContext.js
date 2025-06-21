@@ -1,8 +1,8 @@
 "use client";
 import { useState, createContext, useEffect } from "react";
-import { ethers } from "ethers";
-import contractAddress from "../../contracts/contract-address.json";
-import DSCEngineArtifact from "../../contracts/DSCEngine.json";
+// import { ethers } from "ethers";
+// import contractAddress from "../../contracts/contract-address.json";
+// import DSCEngineArtifact from "../../contracts/DSCEngine.json";
 
 export const DefiContext = createContext();
 
@@ -53,40 +53,39 @@ export const DefiProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchCollateral = async () => {
-      const value = await currentState.contract?.getUserCollateral();
-      const value1 = await currentState.contract?.getLendAmount();
-      const value2 = await currentState.contract?.getTotalLent();
-
-      const value4 = await currentState.contract?.getBorrowAmount();
+      if (!currentState.contract) return;
+      const value = await currentState.contract.getUserCollateral();
+      const value1 = await currentState.contract.getLendAmount();
+      const value2 = await currentState.contract.getTotalLent();
+      const value4 = await currentState.contract.getBorrowAmount();
 
       setTotalCollateral((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value }];
+        return [{ ...temp, available: ethers.formatEther(value) }];
       });
 
       setTotalBorrow((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value4 }];
+        return [{ ...temp, available: ethers.formatEther(value4) }];
       });
 
       setTokensToBorrow((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value2 }];
+        return [{ ...temp, available: ethers.formatEther(value2) }];
       });
 
       setTotalLendingTokens((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value2 }];
+        return [{ ...temp, available: ethers.formatEther(value2) }];
       });
 
       setTotalLend((prev) => {
-        // var temp = prev[0];
-        return [{ ...prev[0], available: value1 }];
+        return [{ ...prev[0], available: ethers.formatEther(value1) }];
       });
 
       setTokensToLend((prev) => {
         var temp = prev[0];
-        return [{ ...temp, available: value2 }];
+        return [{ ...temp, available: ethers.formatEther(value2) }];
       });
     };
     fetchCollateral();
